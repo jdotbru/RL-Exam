@@ -25,3 +25,11 @@ Deliverables:
 • Source code (environment, algorithm, training, evaluation)
 • Presentation slides (coding task + assigned scientific paper)
 • All materials must be uploaded before the examination.
+
+Funktionalität der Umgebung:
+    - Finger mit drei Gelenken
+        -> Verbindungsstücke haben Länge 5 cm, 2.5 cm und 2.5 cm
+        -> Gelenke haben alle eine mögliche Range von +/- 90 Grad
+    - durch Bewegung des Fingers soll ein Dreieck identifiziert werden
+    - Die Fläche wird berechnet
+    - die Fläche beeinflusst dann die reward function
