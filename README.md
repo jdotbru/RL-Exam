@@ -32,4 +32,9 @@ Funktionalität der Umgebung:
         -> Gelenke haben alle eine mögliche Range von +/- 90 Grad
     - durch Bewegung des Fingers soll ein Dreieck identifiziert werden
     - Die Fläche wird berechnet
+        -> Brute-Force Bildung aller möglichen Dreiecke
     - die Fläche beeinflusst dann die reward function
+Reward-Funktion:
+    - wichtiger Faktor: Fläche des identifizierten Dreiecks
+        -> bei keinem Dreieck: Reward = 0
+    - 
