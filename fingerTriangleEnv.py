@@ -9,16 +9,14 @@ from itertools import combinations
 class FingerTriangleEnv(gym.Env):
     metadata = {"render_modes": ["human"]}
     
-    positionSaver = []
-    corners = []
-    
-    def __init__(self, givenUseAntagonist):
+    def __init__(self, givenUseAntagonist=False):
         super().__init__()
         
         #einstellbare Parameter
         self.useMaxSteps = False
-        self.useAntagonist = False
+        self.useAntagonist = bool(givenUseAntagonist)
         self.maxSteps = 500
+        self.minSteps = 50
     
         #gesetzte Parameter
         self.link_lengths = np.array([5.0, 2.5, 2.5])
@@ -30,28 +28,28 @@ class FingerTriangleEnv(gym.Env):
         self.joint_angles = np.zeros(3)
         self.currPos = np.zeros(2)
         self.startPos = np.zeros(2)
-        self.positionSaver = list[np.ndarray] = []
+        self.positionSaver: list[np.ndarray] = []
         
         #Action-space
         if self.useAntagonist:
             self.action_space = spaces.Dict({
-                "protagonist": spaces.Box(low=-1.0, high=1.0, shape=(3,)),
-                "antagonist": spaces.Box(low=-1.0, high=1.0, shape=(3,))
+                "protagonist": spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32),
+                "antagonist": spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
             })
         else:
-            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,))
+            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         
         #Observation-space
-        obs_low = np.array([-self.degree_limit_rad]*3 + [-np.inf]*6)
-        obs_high = np.array([self.degree_limit_rad]*3 + [np.inf]*6)
-        self.observation_space = spaces.Box(low=obs_low, high=obs_high)
+        obs_low = np.array([-self.degree_limit_rad]*3 + [-np.inf]*2, dtype=np.float32)
+        obs_high = np.array([self.degree_limit_rad]*3 + [np.inf]*2, dtype=np.float32)
+        self.observation_space = spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
     
     #---------------------    
     #---Hilfsfunktionen---
     #---------------------
     def get_obs(self) -> np.ndarray:
         #Beobachtungsvektor zusammenbauen
-        return np.concatenate([self.joint_angles, self.currPos])
+        return np.concatenate([self.joint_angles, self.currPos]).astype(np.float32)
      
     def calculate_new_Position(self, angles: np.ndarray) -> np.ndarray:
         #berechnet neue Position des Fingers
@@ -81,7 +79,7 @@ class FingerTriangleEnv(gym.Env):
         
         #Prüfen, ob genug Punkte gesammelt wurden
         points = self.positionSaver
-        if points.size() < 3:
+        if len(points) < 3:
             return 0.0
         
         #Alle möglichen Kombinationen generieren und Ecken des größtmöglichen Dreiecks finden
@@ -93,14 +91,14 @@ class FingerTriangleEnv(gym.Env):
                 maxArea = area
         return maxArea
     
-    def isFinishedSuccesful(self) -> bool:
-        #gibt True zurück wenn der aktuelle Zustand auf maximal einen Millimetter an den Startzustand herankommt
+    def isFinished(self) -> bool:
+        #gibt True zurück wenn der aktuelle Zustand auf maximal einen Millimetter an den Startzustand herankommt und die Mindestanzahl Schritte ausgeführt wurde
         distance = math.sqrt((self.currPos[0] - self.startPos[0])**2 + (self.currPos[1] - self.startPos[1])**2)
-        if (distance <= 1):
+        if (distance <= 1 and self.step_ctr > self.minSteps):
             return True
         return False
     
-    def isFinishedUnsuccesfull(self) ->bool:
+    def isTruncated(self) ->bool:
         #gibt True zurück wenn die maximale Anzahl an Schritten überschritten wurde
         return self.step_ctr >= self.maxSteps
       
@@ -130,7 +128,7 @@ class FingerTriangleEnv(gym.Env):
         
         return obs, info
     
-    def step(self, action: np.ndarray):
+    def step(self, action):
         '''
         Vorgehen pro Step: 
         - Action: Abweichung je Gelenk zwischen -1 und 1 Grad -> übergeben von Agent
@@ -151,7 +149,7 @@ class FingerTriangleEnv(gym.Env):
         self.joint_angles += delta
         
         #Prüfen, ob ein Gelenk überdreht
-        if self.joint_angles[0] > self.degree_limit_rad or self.joint_angles[1] > self.degree_limit_rad or self.joint_angles[2] > self.degree_limit_rad or self.joint_angles[0]< [-self.degree_limit_rad] or self.joint_angles[1]< [-self.degree_limit_rad] or self.joint_angles[2]< [-self.degree_limit_rad]:
+        if np.any(self.joint_angles > self.degree_limit_rad) or np.any(self.joint_angles < -self.degree_limit_rad):
             print("Diese Aktion kann nicht ausgeführt werden, da eines der Gelenke überdrehen würde: ")
             for x in self.joint_angles:
                 print(x, ", ")
@@ -163,22 +161,21 @@ class FingerTriangleEnv(gym.Env):
         
         
         #Prüfen, ob Sequenz zuende ist
-        if self.isFinishedSuccesfull():
+        terminated = False
+        truncated = False
+        reward = 0.0
+        if self.isFinished():
             print("Die Sequenz wurde erfolgreich abgeschlossen.")
             reward = self.getMaxArea()
             terminated = True
-        elif self.isFinishedUnsuccesfull():
+        elif self.isTruncated():
             print("Die Sequenz wurde abgeschlossen, war allerdings nicht erfolgreich.")
-            reward = 0.0
-            terminated = True
-        else:
-            reward = 0.0
-            terminated = False
+            truncated = True
         
         obs = self.get_obs()
         info = {"area": float(reward), "terminated": bool(terminated), "step_ctr": self.step_ctr}
         
-        return obs, reward, terminated, False, info
+        return obs, reward, terminated, truncated, info
         
         
         
