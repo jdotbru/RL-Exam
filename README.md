@@ -36,7 +36,16 @@ Funktionalität der Umgebung:
     - die Fläche beeinflusst dann die reward function
     - Abgrebrochen wird eine Sequenz bei annäherung des Fingers auf eine Einheit zum Startpunkt nach einer Mindestanzahl an Schritten oder bei Überschreitung der maximalen Schrittanzahl
     - ein optionaler Antagonist fügt Störungen in die Bewegung des Fingers ein
+    - Antagonist wirkt als Störung (Simulation realistischer Umstände) im Rahmen von bounded Störungen (nur begrenzt)
 Reward-Funktion:
     - wichtiger Faktor: Fläche des identifizierten Dreiecks
         -> bei keinem Dreieck: Reward = 0
-    - 
+    - Penalty bei:
+        -> überdrehen eines Gelenks
+        -> keinem identifizierten Dreieck
+        -> optional/zukünftig: zu starker Abweichung von gerader Linie
+
+Verbesserungen, die das Training deutlich effektiver gemacht haben/Erkenntnisse:
+    Environment:
+        - Evaluation der gemalten Fläche nach jedem Schritt, nicht erst nach Episodenende
+    Agent:

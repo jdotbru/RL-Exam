@@ -4,4 +4,4 @@
 4. Wie genau soll Lernprozess des Agenten sein? Soll vorgegeben sein, dass ein Dreieck gezeichnet werden muss oder soll Agent random anfangen und lernen ein Dreieck zu zeichnen?
 4.2: Ab wann sollen wir ein Dreieck erkennen lassen?
 4.3: Muss eine Ecke des Dreiecks der Startpunkt sein?
-5. 
+5. Ist das Ziel ein möglich genaues Dreieck? Oder ein möglichst großes?
