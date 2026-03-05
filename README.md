@@ -25,3 +25,27 @@ Deliverables:
 • Source code (environment, algorithm, training, evaluation)
 • Presentation slides (coding task + assigned scientific paper)
 • All materials must be uploaded before the examination.
+
+Funktionalität der Umgebung:
+    - Finger mit drei Gelenken
+        -> Verbindungsstücke haben Länge 5 cm, 2.5 cm und 2.5 cm
+        -> Gelenke haben alle eine mögliche Range von +/- 90 Grad
+    - durch Bewegung des Fingers soll ein Dreieck identifiziert werden
+    - Die Fläche wird berechnet
+        -> Brute-Force Bildung aller möglichen Dreiecke
+    - die Fläche beeinflusst dann die reward function
+    - Abgrebrochen wird eine Sequenz bei annäherung des Fingers auf eine Einheit zum Startpunkt nach einer Mindestanzahl an Schritten oder bei Überschreitung der maximalen Schrittanzahl
+    - ein optionaler Antagonist fügt Störungen in die Bewegung des Fingers ein
+    - Antagonist wirkt als Störung (Simulation realistischer Umstände) im Rahmen von bounded Störungen (nur begrenzt)
+Reward-Funktion:
+    - wichtiger Faktor: Fläche des identifizierten Dreiecks
+        -> bei keinem Dreieck: Reward = 0
+    - Penalty bei:
+        -> überdrehen eines Gelenks
+        -> keinem identifizierten Dreieck
+        -> optional/zukünftig: zu starker Abweichung von gerader Linie
+
+Verbesserungen, die das Training deutlich effektiver gemacht haben/Erkenntnisse:
+    Environment:
+        - Evaluation der gemalten Fläche nach jedem Schritt, nicht erst nach Episodenende
+    Agent:
