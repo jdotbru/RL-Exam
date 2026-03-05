@@ -1,2 +1,7 @@
 1. Dürfen wir für Environment gymnasium nutzen?
 2. In Präsentation soll vorrangig Code vorgestellt werden oder Ergebnisse/Numbers of merit?
+3. Der Antagonist soll nicht wie in der Vorlesung gelernt ein Agent sein, der gezielt schlechte Ergebnisse hervorruft, sondern quasi ab und zu Störungen einwerfen?
+4. Wie genau soll Lernprozess des Agenten sein? Soll vorgegeben sein, dass ein Dreieck gezeichnet werden muss oder soll Agent random anfangen und lernen ein Dreieck zu zeichnen?
+4.2: Ab wann sollen wir ein Dreieck erkennen lassen?
+4.3: Muss eine Ecke des Dreiecks der Startpunkt sein?
+5. 

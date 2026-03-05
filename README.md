@@ -35,6 +35,7 @@ Funktionalität der Umgebung:
         -> Brute-Force Bildung aller möglichen Dreiecke
     - die Fläche beeinflusst dann die reward function
     - Abgrebrochen wird eine Sequenz bei annäherung des Fingers auf eine Einheit zum Startpunkt nach einer Mindestanzahl an Schritten oder bei Überschreitung der maximalen Schrittanzahl
+    - ein optionaler Antagonist fügt Störungen in die Bewegung des Fingers ein
 Reward-Funktion:
     - wichtiger Faktor: Fläche des identifizierten Dreiecks
         -> bei keinem Dreieck: Reward = 0
