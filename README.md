@@ -40,6 +40,7 @@ Funktionalität der Umgebung:
 Reward-Funktion:
     - wichtiger Faktor: Fläche des identifizierten Dreiecks
         -> bei keinem Dreieck: Reward = 0
+    - Reward bei Abschließen in der Nähe des Anfangspunktes
     - Penalty bei:
         -> überdrehen eines Gelenks
         -> keinem identifizierten Dreieck
@@ -48,4 +49,5 @@ Reward-Funktion:
 Verbesserungen, die das Training deutlich effektiver gemacht haben/Erkenntnisse:
     Environment:
         - Evaluation der gemalten Fläche nach jedem Schritt, nicht erst nach Episodenende
+        - höher gewichteten Reward für große Fläche 
     Agent:
