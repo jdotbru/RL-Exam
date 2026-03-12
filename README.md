@@ -38,6 +38,10 @@ Funktionalität der Umgebung:
     - ein optionaler Antagonist fügt Störungen in die Bewegung des Fingers ein
     - Antagonist wirkt als Störung (Simulation realistischer Umstände) im Rahmen von bounded Störungen (nur begrenzt)
 Reward-Funktion:
+    - 3 Phasen
+        -> 1. Phase: Weg vom Start und klare Ecke erkennbar
+        -> 2. Phase: Weg von Ecke und klare Ecke erkennbar
+        -> 3. Phase: Zurück zum Start
     - wichtiger Faktor: Fläche des identifizierten Dreiecks
         -> bei keinem Dreieck: Reward = 0
     - Reward bei Abschließen in der Nähe des Anfangspunktes
@@ -48,6 +52,9 @@ Reward-Funktion:
 
 Verbesserungen, die das Training deutlich effektiver gemacht haben/Erkenntnisse:
     Environment:
-        - Evaluation der gemalten Fläche nach jedem Schritt, nicht erst nach Episodenende
-        - höher gewichteten Reward für große Fläche 
+
     Agent:
+
+Probleme/Herausforderungen:
+    - Agenten früh dazu kriegen, die rewards zu erkennen (Ecken bilden und Dreieck zuende bringen)
+    - Rewardfunction so gewichten, dass das richtige gelernt wird
