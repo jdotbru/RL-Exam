@@ -263,12 +263,12 @@ def main():
     torch.manual_seed(seed)
 
     # Hyperparameter
-    episodes = 600
+    episodes = 3000
     gamma = 0.99
-    learning_rate = 1e-3
+    learning_rate = 3e-4
     critic_weight = 0.5
-    entropy_weight = 0.01
-    antagonist_prob = 0.10
+    entropy_weight = 0.002
+    antagonist_prob = 0.0
     use_antagonist = True
 
     env = FingerTriangleEnv(givenUseAntagonist=use_antagonist)

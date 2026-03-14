@@ -16,36 +16,37 @@ class FingerTriangleEnv(gym.Env):
         self.useAntagonist = bool(givenUseAntagonist)
         self.maxSteps = 150
         self.minSteps = 30
-        self.angleThreshold = 25.0
+        self.angleThresholdMin = 15.0
+        self.angleThresholdMax = 150.0
         self.minCornerSteps = 5
-        self.min_segment_len = 0.15
+        self.min_segment_len = 0.2
         self.action_delta = 1.0
-        self.closureRadius = 0.8
-        self.cornerWindow = 4
+        self.closureRadius = 1.0
+        self.cornerWindow = 3
         self.directionChangeLimit = 10.0
-        self.minArea = 0.4
+        self.minArea = 0.3
         self.targetAngle = 90.0
         
         #penalties and rewards
         self.totalReward = 0
-        self.reward_Closure = 10.0
-        self.reward_Corner1 = 2.0
-        self.reward_Corner2 = 1.0
+        self.reward_Closure = 1000.0
+        self.reward_Corner1 = 10.0
+        self.reward_Corner2 = 2.0
         self.reward_Multiplier_Area_Corner2 = 20.0
-        self.reward_Multiplier_Area = 20.0
+        self.reward_Multiplier_Area = 60.0
         self.reward_Multiplier_Area_InSequence = 40.0
-        self.reward_partialArea = 10.0
+        self.reward_partialArea = 0.0
         self.reward_Edge1Len = 0.8
         self.penalty_limitViolation = 0.05
-        self.penalty_noTriangle = 1.0
+        self.penalty_noTriangle = 10.0
         self.penalty_stepNumberMultiplicator = 0.01
         self.penalty_Multiplier_DirectionChange0 = 0.01
         self.penalty_Multiplier_DirectionChange1 = 0.002
         self.penalty_Multiplier_Parallelity = 4.0
-        self.penalty_Multiplier_AngleOptimality = 1.5
-        self.phaseProgressScale0 = 0.2
-        self.phaseProgressScale1 = 0.2
-        self.phaseProgressScale2 = 2.0
+        self.penalty_Multiplier_AngleOptimality = 3.0
+        self.phaseProgressScale0 = 0.1
+        self.phaseProgressScale1 = 1.2
+        self.phaseProgressScale2 = 6.0
     
         #gesetzte Parameter
         self.link_lengths = np.array([5.0, 2.5, 2.5])
@@ -150,7 +151,7 @@ class FingerTriangleEnv(gym.Env):
         
         angle = self.angleBetween(v1, v2)
         
-        return angle > self.angleThreshold
+        return self.angleThresholdMax > angle > self.angleThresholdMin
     
     #To-Do: Update Function to non-angle values
     def calculate_new_Position(self, angles: np.ndarray) -> np.ndarray:
@@ -352,11 +353,15 @@ class FingerTriangleEnv(gym.Env):
                 #dritte Phase soll zurück zum Start kommen und dabei die Fläche erhalten
                 prevDistanceToStart = np.linalg.norm(prevPos - self.startPos)
                 currDistanceToStart = np.linalg.norm(self.currPos - self.startPos)
+                deltaToStart = prevDistanceToStart - currDistanceToStart
                 #Annäherung an den Start belohnen
-                reward += self.phaseProgressScale2 * (prevDistanceToStart - currDistanceToStart)
+                reward += self.phaseProgressScale2 * deltaToStart
                 
-                curr_final_area = self.calculateTriangleArea(self.startPos, self.corner1, self.corner2)
-                reward += 0.1 * curr_final_area 
+                if deltaToStart < 0:
+                    reward += self.phaseProgressScale2 * deltaToStart
+                             
+                #curr_final_area = self.calculateTriangleArea(self.startPos, self.corner1, self.corner2)
+                #reward += 0.1 * curr_final_area 
                 
             case _:
                 print("Wir befinden uns in einer ungültigen Phase.")
