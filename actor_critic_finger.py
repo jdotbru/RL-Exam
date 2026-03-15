@@ -267,15 +267,6 @@ def episode_quality_score(result: EpisodeResult) -> float:
     return float(score)
 
 
-def clean_triangle_like(result: EpisodeResult) -> bool:
-    return bool(
-        result.success
-        and result.distance_to_start <= 0.60
-        and result.triangle_straightness >= 0.60
-        and result.extra_corners <= 1
-    )
-
-
 def visually_closed(result: EpisodeResult) -> bool:
     return bool(
         result.success
@@ -491,19 +482,17 @@ def collect_temperature_sweep_rollouts(
     return all_results, summaries
 
 
-def checkpoint_score_tuple(results: list[EpisodeResult]) -> tuple[float, float, float, float, float]:
+def checkpoint_score_tuple(results: list[EpisodeResult]) -> tuple[float, float, float, float]:
     if not results:
-        return (0.0, 0.0, 0.0, 0.0, 0.0)
+        return (0.0, 0.0, 0.0, 0.0)
 
     successes = [result for result in results if result.success]
     good_successes = [result for result in successes if result.good_triangle]
-    clean_successes = [result for result in successes if clean_triangle_like(result)]
     success_rate = len(successes) / len(results)
     good_rate = len(good_successes) / len(results)
-    clean_rate = len(clean_successes) / len(results)
-    mean_clean_area = float(np.mean([result.area for result in clean_successes])) if clean_successes else 0.0
+    mean_success_area = float(np.mean([result.area for result in successes])) if successes else 0.0
     best_success_area = max((result.area for result in successes), default=0.0)
-    return (clean_rate, good_rate, mean_clean_area, success_rate, best_success_area)
+    return (good_rate, mean_success_area, success_rate, best_success_area)
 
 
 # -----------------------------
@@ -847,7 +836,7 @@ def main():
     stage_history: list[int] = []
     training_results: list[EpisodeResult] = []
     best_checkpoint_state: dict[str, torch.Tensor] | None = None
-    best_checkpoint_score = (-1.0, -1.0, -1.0, -1.0, -1.0)
+    best_checkpoint_score = (-1.0, -1.0, -1.0, -1.0)
     best_checkpoint_episode = 0
 
     if quick_test:
@@ -1043,11 +1032,10 @@ def main():
                 }
                 print(
                     f"  Neuer bester Checkpoint @ Episode {ep}: "
-                    f"clean={100.0 * checkpoint_score[0]:4.1f}%, "
-                    f"good={100.0 * checkpoint_score[1]:4.1f}%, "
-                    f"meanCleanArea={checkpoint_score[2]:.3f}, "
-                    f"succ={100.0 * checkpoint_score[3]:4.1f}%, "
-                    f"bestSuccArea={checkpoint_score[4]:.3f}"
+                    f"good={100.0 * checkpoint_score[0]:4.1f}%, "
+                    f"meanSuccArea={checkpoint_score[1]:.3f}, "
+                    f"succ={100.0 * checkpoint_score[2]:4.1f}%, "
+                    f"bestSuccArea={checkpoint_score[3]:.3f}"
                 , flush=True)
 
     if best_checkpoint_state is not None:
@@ -1063,11 +1051,10 @@ def main():
         print(
             f"\nLade besten Checkpoint aus Episode {best_checkpoint_episode} "
             f"fuer die Final-Evaluation: "
-            f"clean={100.0 * best_checkpoint_score[0]:4.1f}%, "
-            f"good={100.0 * best_checkpoint_score[1]:4.1f}%, "
-            f"meanCleanArea={best_checkpoint_score[2]:.3f}, "
-            f"succ={100.0 * best_checkpoint_score[3]:4.1f}%, "
-            f"bestSuccArea={best_checkpoint_score[4]:.3f}"
+            f"good={100.0 * best_checkpoint_score[0]:4.1f}%, "
+            f"meanSuccArea={best_checkpoint_score[1]:.3f}, "
+            f"succ={100.0 * best_checkpoint_score[2]:4.1f}%, "
+            f"bestSuccArea={best_checkpoint_score[3]:.3f}"
         , flush=True)
 
     try:
