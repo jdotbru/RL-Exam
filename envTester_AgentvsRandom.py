@@ -16,6 +16,9 @@ def evaluate_policy_like(env, model=None, episodes: int = 50, random_policy: boo
     lengths = []
     successes = 0
     areas = []
+    straightness = []
+    extra_corners = []
+    phase2_reached = 0
 
     for ep in range(episodes):
         obs, info = env.reset()
@@ -41,17 +44,12 @@ def evaluate_policy_like(env, model=None, episodes: int = 50, random_policy: boo
         if terminated:
             successes += 1
 
-        # Fläche nur sinnvoll, wenn beide Ecken existieren
         base_env = env.unwrapped
-        if base_env.corner1 is not None and base_env.corner2 is not None:
-            area = base_env.calculateTriangleArea(
-                base_env.startPos,
-                base_env.corner1,
-                base_env.corner2
-            )
-        else:
-            area = 0.0
-
+        area = float(info.get("area", 0.0))
+        straightness.append(float(info.get("triangle_straightness", 0.0)))
+        extra_corners.append(int(info.get("extra_corners", 0)))
+        if int(info.get("current_Phase", 0)) >= 2:
+            phase2_reached += 1
         areas.append(area)
 
     return {
@@ -61,6 +59,9 @@ def evaluate_policy_like(env, model=None, episodes: int = 50, random_policy: boo
         "success_rate": float(successes / episodes),
         "mean_area": float(np.mean(areas)),
         "max_area": float(np.max(areas)),
+        "mean_straightness": float(np.mean(straightness)),
+        "mean_extra_corners": float(np.mean(extra_corners)),
+        "phase2_rate": float(phase2_reached / episodes),
     }
 
 
@@ -113,7 +114,10 @@ def main():
         f"mean_len={random_stats['mean_len']:.1f}  "
         f"success_rate={random_stats['success_rate']:.2%}  "
         f"mean_area={random_stats['mean_area']:.3f}  "
-        f"max_area={random_stats['max_area']:.3f}"
+        f"max_area={random_stats['max_area']:.3f}  "
+        f"phase2_rate={random_stats['phase2_rate']:.2%}  "
+        f"straight={random_stats['mean_straightness']:.3f}  "
+        f"extra_corners={random_stats['mean_extra_corners']:.2f}"
     )
     print(
         f"PPO:    mean_return={ppo_stats['mean_return']:.3f}  "
@@ -121,7 +125,10 @@ def main():
         f"mean_len={ppo_stats['mean_len']:.1f}  "
         f"success_rate={ppo_stats['success_rate']:.2%}  "
         f"mean_area={ppo_stats['mean_area']:.3f}  "
-        f"max_area={ppo_stats['max_area']:.3f}"
+        f"max_area={ppo_stats['max_area']:.3f}  "
+        f"phase2_rate={ppo_stats['phase2_rate']:.2%}  "
+        f"straight={ppo_stats['mean_straightness']:.3f}  "
+        f"extra_corners={ppo_stats['mean_extra_corners']:.2f}"
     )
 
 
