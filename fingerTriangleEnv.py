@@ -48,29 +48,27 @@ class FingerTriangleEnv(gym.Env):
         self.reward_Multiplier_Area_InSequence = 75.0
         self.reward_partialArea = 12.0
         self.reward_Edge1Len = 0.8
-        self.reward_Phase2Closure = 12.0
-        self.reward_TriangleShape = 140.0
-        self.reward_TriangleStraightness = 120.0
+        self.reward_Phase2Closure = 10.0
+        self.reward_TriangleShape = 120.0
+        self.reward_TriangleStraightness = 110.0
         self.penalty_limitViolation = 0.05
         self.penalty_noTriangle = 15.0
         self.penalty_stepNumberMultiplicator = 0.01
-        self.penalty_Multiplier_DirectionChange0 = 0.002
-        self.penalty_Multiplier_DirectionChange1 = 0.001
-        self.penalty_Phase2AwayFromStart = 10.0
+        self.penalty_Multiplier_DirectionChange0 = 0.0015
+        self.penalty_Multiplier_DirectionChange1 = 0.0008
+        self.penalty_Phase2AwayFromStart = 8.0
         self.penalty_Phase2EndDistance = 4.0
-        self.penalty_ExtraCorner = 18.0
-        self.penalty_SegmentCurvature = 6.0
-        self.penalty_Multiplier_Parallelity = 4.0
-        self.penalty_Multiplier_AngleOptimality = 3.0
-        self.penalty_phaseStall0 = 0.05
-        self.penalty_phaseStall1 = 0.08
+        self.penalty_ExtraCorner = 16.0
+        self.penalty_SegmentCurvature = 5.0
+        self.penalty_phaseStall0 = 0.03
+        self.penalty_phaseStall1 = 0.05
         self.phaseProgressScale0 = 0.05
-        self.phaseProgressScale1 = 1.0
-        self.phaseProgressScale2 = 12.0
-        self.reward_Phase2DirectionAlignment = 2.5
+        self.phaseProgressScale1 = 0.8
+        self.phaseProgressScale2 = 10.0
+        self.reward_Phase2DirectionAlignment = 2.0
         self.reward_Phase2CleanReturn = 0.0
-        self.penalty_Phase2ReturnLineDeviation = 8.0
-        self.penalty_Phase2LateDistance = 2.0
+        self.penalty_Phase2ReturnLineDeviation = 6.0
+        self.penalty_Phase2LateDistance = 1.5
         self.stage2_maxCountedExtraCorners = 2
         self.stage2_curvaturePenaltyCap = 10.0
         self.stage2_awayFromStartPenaltyCap = 10.0
@@ -80,8 +78,6 @@ class FingerTriangleEnv(gym.Env):
         self.stage3_awayFromStartPenaltyCap = 8.0
         self.stage3_lateDistancePenaltyCap = 6.0
         self.stage3_truncationEndDistancePenaltyCap = 6.0
-        self.reward_Edge1Quality = 30.0
-        self.reward_Edge2Quality = 45.0
         self.reward_Phase1Corner2Spread = 9.0
         self.reward_TriangleMeanEdge = 20.0
         self.reward_TriangleEdgeBalance = 28.0
@@ -138,7 +134,7 @@ class FingerTriangleEnv(gym.Env):
             + [-1] * 2
             + [0]
             + [0]
-            + [0],
+            + [0] * 3,
             dtype=np.float32,
         )
         obs_high = np.array(
@@ -156,7 +152,7 @@ class FingerTriangleEnv(gym.Env):
             + [1] * 2
             + [20]
             + [20]
-            + [2],
+            + [1] * 3,
             dtype=np.float32,
         )
         self.observation_space = spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
@@ -191,7 +187,9 @@ class FingerTriangleEnv(gym.Env):
         phaseLineDeviation = np.array([self.getPhaseLineDeviation()], dtype=np.float32)
         phaseProgress = np.array([self.getPhaseProgress()], dtype=np.float32)
         
-        phase = np.array([self.currPhase], dtype=np.float32)
+        phase_one_hot = np.zeros(3, dtype=np.float32)
+        phase_idx = int(np.clip(self.currPhase, 0, 2))
+        phase_one_hot[phase_idx] = 1.0
         return np.concatenate(
             [
                 self.joint_angles,
@@ -208,7 +206,7 @@ class FingerTriangleEnv(gym.Env):
                 phaseTargetDirection,
                 phaseLineDeviation,
                 phaseProgress,
-                phase,
+                phase_one_hot,
             ]
         ).astype(np.float32)
 
@@ -728,7 +726,7 @@ class FingerTriangleEnv(gym.Env):
         #Rewards für korrekte Bewegungen innerhalb der Phasen        
         match self.currPhase:
             case 0:
-                #erste Kante soll vom Start weg und gerade verlaufen
+                # Subgoal 0: build the first edge by moving outward cleanly.
                 prevDistanceToStart = np.linalg.norm(prevPos - self.startPos)
                 currDistanceToStart = np.linalg.norm(self.currPos - self.startPos)
                 shaping_reward += self.phaseProgressScale0 * (currDistanceToStart - prevDistanceToStart)
@@ -747,15 +745,13 @@ class FingerTriangleEnv(gym.Env):
                 shaping_reward -= self.penalty_SegmentCurvature * deviation
 
             case 1:
-                #zweite Phase soll eine große Fläche erzeugen
+                # Subgoal 1: place the second edge so the triangle spans a large area.
                 prevDistanceToCorner1 = np.linalg.norm(prevPos - self.corner1)
                 currDistanceToCorner1 = np.linalg.norm(self.currPos - self.corner1)
-                #Bewegung von Ecke 1 belohnen
                 shaping_reward += self.phaseProgressScale1 * (currDistanceToCorner1 - prevDistanceToCorner1)
                 
                 prev_area = self.calculateTriangleArea(self.startPos, self.corner1, prevPos)
                 curr_area = self.calculateTriangleArea(self.startPos, self.corner1, self.currPos)
-                #große Fläche belohnen
                 shaping_reward += self.reward_Multiplier_Area_InSequence * (curr_area - prev_area)
 
                 prev_spread = min(
@@ -767,14 +763,6 @@ class FingerTriangleEnv(gym.Env):
                     np.linalg.norm(self.currPos - self.corner1),
                 )
                 shaping_reward += self.reward_Phase1Corner2Spread * (curr_spread - prev_spread)
-                
-                parallelity = self.calculateParallelity()
-                #Parallelität zu erster kante bestrafen
-                shaping_reward -= self.penalty_Multiplier_Parallelity * max(0.0, parallelity)
-                
-                angleEdge2 = self.calculateAngleOfEdge2()
-                #Winkel zwischen erster und zweiter Kante belohnen
-                shaping_reward += self.penalty_Multiplier_AngleOptimality * (1 - abs(angleEdge2 - self.targetAngle) / self.targetAngle)
                 
                 if len(self.positionSaver) >= 3 and not isPhaseSwitch:   
                     prevPrevPos = self.positionSaver[-3]
@@ -791,11 +779,10 @@ class FingerTriangleEnv(gym.Env):
                 shaping_reward -= self.penalty_SegmentCurvature * deviation
 
             case 2:
-                #dritte Phase soll zurück zum Start kommen und dabei die Fläche erhalten
+                # Subgoal 2: return to the start along a clean closing edge.
                 prevDistanceToStart = np.linalg.norm(prevPos - self.startPos)
                 currDistanceToStart = np.linalg.norm(self.currPos - self.startPos)
                 deltaToStart = prevDistanceToStart - currDistanceToStart
-                #Annäherung an den Start belohnen
                 shaping_reward += self.phaseProgressScale2 * deltaToStart
                 
                 if deltaToStart < 0:
@@ -873,7 +860,6 @@ class FingerTriangleEnv(gym.Env):
             
             if self.corner1 is not None and self.corner2 is not None:
                 partial_Area = self.calculateTriangleArea(self.startPos, self.corner1, self.corner2)
-                mean_edge_length, edge_balance = self.getTriangleEdgeMetrics()
                 shaping_reward += self.reward_partialArea * partial_Area
                 end_distance_penalty = self.penalty_Phase2EndDistance * float(np.linalg.norm(self.currPos - self.startPos))
                 shaping_reward -= self.capLateStagePenalty(
@@ -882,10 +868,8 @@ class FingerTriangleEnv(gym.Env):
                     self.stage3_truncationEndDistancePenaltyCap,
                 )
                 _, mean_deviation, straightness_score = self.evaluateTriangleShape()
-                shaping_reward += 0.25 * self.reward_TriangleStraightness * straightness_score
-                shaping_reward += 0.25 * self.reward_TriangleMeanEdge * mean_edge_length
-                shaping_reward += 0.25 * self.reward_TriangleEdgeBalance * edge_balance
-                shaping_reward -= self.penalty_ExtraCorner * self.getCountedExtraCorners()
+                shaping_reward += 0.2 * self.reward_TriangleStraightness * straightness_score
+                shaping_reward -= 0.5 * self.penalty_ExtraCorner * self.getCountedExtraCorners()
             else:
                 shaping_reward -= self.penalty_noTriangle
         
@@ -901,26 +885,6 @@ class FingerTriangleEnv(gym.Env):
             if self.currPhase == 2:
                 self.phase2_target_direction = self.normalizeVector(self.startPos - self.corner2) if self.corner2 is not None else None
 
-        if self.corner1 is not None and self.corner1_idx is not None and len(self.positionSaver) == self.corner1_idx + 1:
-            edge1_len, edge1_deviation = self.getEdge1Quality()
-            edge1_straightness = max(0.0, 1.0 - edge1_deviation / self.maxMeanLineDeviation)
-            shaping_reward += self.reward_Edge1Quality * edge1_straightness + 4.0 * edge1_len
-
-        if self.corner2 is not None and self.corner2_idx is not None and len(self.positionSaver) == self.corner2_idx + 1:
-            edge1_len, edge1_deviation = self.getEdge1Quality()
-            edge2_len, edge2_deviation = self.getEdge2Quality()
-            mean_edge_length, edge_balance = self.getTriangleEdgeMetrics()
-            edge_pair_straightness = max(
-                0.0,
-                1.0 - float(np.mean([edge1_deviation, edge2_deviation])) / self.maxMeanLineDeviation,
-            )
-            shaping_reward += (
-                self.reward_Edge2Quality * edge_pair_straightness
-                + 6.0 * min(edge1_len, edge2_len)
-                + 20.0 * self.calculateTriangleArea(self.startPos, self.corner1, self.corner2)
-                + 6.0 * mean_edge_length
-                + 12.0 * edge_balance
-            )
         self.updateBestFormSnapshot()
         reward = shaping_reward + terminal_reward + terminal_good_bonus
         #Observation und Info speichern
