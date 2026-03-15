@@ -16,3 +16,10 @@
 - In Präsi genau die Fragen beantworten
 - Actor-Critic ist der Algorithmus der implementiert werden muss. Das sind Sarsa Agenten
 - Simulation heißt irgendwie verbesserungsvorschläge plausibel machen
+
+1. Sollen wir in Präsentation einen rundown von Problemen geben -> Projektverlauf?
+    -> würde helfen designentscheidungen zu erklären
+2. Inwieweit ist die Nutzung von KI erlaubt?
+    -> Designunterstützung, oder sogar Codevorschläge?
+3. Antagonist liest sich aus der AUfgabenstellung als Einführung der reellen Störung bei motorischen Bewegungen
+    -> stimmt das oder ist ein richtiger Antagonisten-Agent gemeint?
