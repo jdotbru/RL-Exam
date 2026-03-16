@@ -49,6 +49,7 @@ class FingerTriangleEnv(gym.Env):
         self.reward_partialArea = 12.0
         self.reward_Edge1Len = 0.8
         self.reward_Phase2Closure = 10.0
+        self.reward_Phase2AreaPreservation = 0.0
         self.reward_TriangleShape = 120.0
         self.reward_TriangleStraightness = 110.0
         self.penalty_limitViolation = 0.05
@@ -226,6 +227,7 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 8.0
             self.penalty_SegmentCurvature = 2.5
             self.reward_TriangleStraightness = 70.0
+            self.reward_Phase2AreaPreservation = 0.0
         elif self.curriculum_stage == 1:
             self.maxSteps = 142
             self.minSteps = 20
@@ -239,6 +241,7 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 12.0
             self.penalty_SegmentCurvature = 4.0
             self.reward_TriangleStraightness = 95.0
+            self.reward_Phase2AreaPreservation = 0.0
         elif self.curriculum_stage == 2:
             self.maxSteps = 148
             self.minSteps = 22
@@ -252,19 +255,22 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 15.0
             self.penalty_SegmentCurvature = 5.0
             self.reward_TriangleStraightness = 108.0
+            self.reward_Phase2AreaPreservation = 0.0
         else:
-            self.maxSteps = 152
+            self.maxSteps = 156
             self.minSteps = 23
-            self.closureRadius = 1.55
-            self.minArea = 0.09
-            self.maxMeanLineDeviation = 0.38
-            self.minStraightnessForSuccess = 0.45
+            self.closureRadius = 1.60
+            self.minArea = 0.08
+            self.maxMeanLineDeviation = 0.40
+            self.minStraightnessForSuccess = 0.40
             self.maxExtraCornersForSuccess = 1
-            self.minMeanEdgeLengthForGoodTriangle = 1.05
-            self.minEdgeBalanceForGoodTriangle = 0.46
-            self.penalty_ExtraCorner = 16.5
-            self.penalty_SegmentCurvature = 5.5
-            self.reward_TriangleStraightness = 114.0
+            self.minMeanEdgeLengthForGoodTriangle = 1.00
+            self.minEdgeBalanceForGoodTriangle = 0.44
+            self.penalty_ExtraCorner = 15.5
+            self.penalty_SegmentCurvature = 5.0
+            self.reward_TriangleStraightness = 110.0
+            self.reward_Phase2Closure = 11.0
+            self.reward_Phase2AreaPreservation = 0.60
     
     def updateAngles(self, action): 
         
@@ -797,6 +803,7 @@ class FingerTriangleEnv(gym.Env):
 
                 curr_final_area = self.calculateTriangleArea(self.startPos, self.corner1, self.corner2)
                 shaping_reward += 0.2 * curr_final_area
+                shaping_reward += self.reward_Phase2AreaPreservation * curr_final_area
 
                 alignment = self.getReturnDirectionAlignment(prevPos, self.currPos)
                 shaping_reward += self.reward_Phase2DirectionAlignment * alignment
@@ -804,7 +811,6 @@ class FingerTriangleEnv(gym.Env):
                 prev_return_deviation = self.getReturnLineDeviation(prevPos)
                 curr_return_deviation = self.getReturnLineDeviation(self.currPos)
                 shaping_reward += self.penalty_Phase2ReturnLineDeviation * (prev_return_deviation - curr_return_deviation)
-
                 close_ratio = max(0.0, 1.0 - currDistanceToStart / max(1e-6, self.getEffectiveClosureRadius()))
                 line_ratio = max(0.0, 1.0 - curr_return_deviation / max(1e-6, self.maxMeanLineDeviation))
                 if close_ratio > 0.0 and line_ratio > 0.0:
