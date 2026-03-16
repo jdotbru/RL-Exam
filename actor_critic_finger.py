@@ -607,6 +607,9 @@ def summarize_training_metrics(
     distance_history: list[float],
     successful_area_history: list[float],
     stage_history: list[int],
+    benchmark_reward_history: list[float],
+    benchmark_success_history: list[float],
+    benchmark_area_history: list[float],
 ) -> list[str]:
     if not reward_history:
         return ["Keine Trainingsdaten vorhanden."]
@@ -630,23 +633,37 @@ def summarize_training_metrics(
         if len(idx) == 0:
             continue
         stage_lines.append(
-            f"Stage {stage}: Reward {np.mean(rewards[idx]):.1f}, "
+            f"Stage {stage} lokal: Reward {np.mean(rewards[idx]):.1f}, "
             f"Success {100.0 * np.mean(successes[idx]):.1f}%, "
             f"Good {100.0 * np.mean(good[idx]):.1f}%, "
             f"Area {np.mean(areas[idx]):.3f}"
         )
 
+    benchmark_lines: list[str] = []
+    if benchmark_reward_history:
+        benchmark_lines.extend(
+            [
+                f"Stage-3 Benchmark R: {benchmark_reward_history[-1]:.1f}",
+                f"Stage-3 Benchmark S: {benchmark_success_history[-1]:.1f}%",
+                f"Stage-3 Benchmark A: {benchmark_area_history[-1]:.3f}",
+            ]
+        )
+
     return [
-        f"Letzte {latest_window} Ep.: Reward {np.mean(reward_history[-latest_window:]):.1f}",
-        f"Letzte {latest_window} Ep.: Success {100.0 * np.mean(success_history[-latest_window:]):.1f}%",
-        f"Letzte {latest_window} Ep.: Good {100.0 * np.mean(good_triangle_history[-latest_window:]):.1f}%",
-        f"MA25 Reward jetzt: {reward_ma[-1]:.1f}",
-        f"MA25 Success jetzt: {success_ma[-1]:.1f}%",
-        f"MA25 Good jetzt: {good_ma[-1]:.1f}%",
+        "Metrik-Hinweis:",
+        "Lokal = nach aktuellem Stage-Standard",
+        "Benchmark = immer auf Stage 3 bewertet",
+        f"Letzte {latest_window} Ep. lokal R: {np.mean(reward_history[-latest_window:]):.1f}",
+        f"Letzte {latest_window} Ep. lokal S: {100.0 * np.mean(success_history[-latest_window:]):.1f}%",
+        f"Letzte {latest_window} Ep. lokal G: {100.0 * np.mean(good_triangle_history[-latest_window:]):.1f}%",
+        f"MA25 lokal Reward: {reward_ma[-1]:.1f}",
+        f"MA25 lokal Success: {success_ma[-1]:.1f}%",
+        f"MA25 lokal Good: {good_ma[-1]:.1f}%",
         f"MA25 Erfolgsflaeche: {success_area_ma[-1]:.3f}",
         f"MA25 Abschlussluecke: {closure_gap_ma[-1]:.3f}",
         f"Beste Flaeche bisher: {max(area_history):.3f}",
         f"Bester Erfolg bisher: {max(successful_area_history):.3f}",
+        *benchmark_lines,
         *stage_lines,
     ]
 
@@ -782,6 +799,9 @@ def plot_results(
         distance_history=distance_history,
         successful_area_history=successful_area_history,
         stage_history=stage_history,
+        benchmark_reward_history=benchmark_reward_history,
+        benchmark_success_history=benchmark_success_history,
+        benchmark_area_history=benchmark_area_history,
     )
 
     fig1, axs1 = plt.subplots(2, 2, figsize=(15, 9), num="Training Trends")
@@ -815,7 +835,7 @@ def plot_results(
     ax3 = axs1[1, 0]
     ax3.plot(success_ma, linewidth=2.5)
     add_stage_background(ax3, stage_history)
-    ax3.set_title("Success-Rate (Moving Average 25)")
+    ax3.set_title("Success-Rate lokal (aktueller Stage-Standard, MA 25)")
     ax3.set_xlabel("Episode")
     ax3.set_ylabel("Erfolgsquote in %")
     ax3.set_ylim(0, 100)
@@ -838,7 +858,7 @@ def plot_results(
     ax5.plot(successful_area_ma, linewidth=2.5, color="tab:orange", label="Erfolgsflaeche MA")
     ax5.plot(area_history, alpha=0.08, color="tab:orange")
     add_stage_background(ax5, stage_history)
-    ax5.set_title("Mittlere Erfolgsflaeche")
+    ax5.set_title("Mittlere Erfolgsflaeche lokal")
     ax5.set_xlabel("Episode")
     ax5.set_ylabel("Area bei Erfolgen")
     ax5.grid(True, alpha=0.3)
@@ -847,7 +867,7 @@ def plot_results(
     ax6 = axs2[0, 1]
     for stage, (x_vals, y_vals) in stage_success_curves.items():
         ax6.plot(x_vals, y_vals, linewidth=2.2, color=stage_colors.get(stage, None), label=f"Stage {stage}")
-    ax6.set_title("Success je Stage (MA 25)")
+    ax6.set_title("Success je Stage lokal (MA 25)")
     ax6.set_xlabel("Episode innerhalb der Stage")
     ax6.set_ylabel("Erfolgsquote in %")
     ax6.set_ylim(0, 100)
@@ -859,7 +879,7 @@ def plot_results(
         ax7.plot(benchmark_episode_points, benchmark_reward_history, alpha=0.20, color="tab:purple", label="Stage-3 Benchmark Reward")
         ax7.plot(benchmark_episode_points, benchmark_reward_ma, linewidth=2.5, color="tab:purple", label="Benchmark Reward MA")
     add_stage_background(ax7, stage_history)
-    ax7.set_title("Reward auf Stage-3-Standard")
+    ax7.set_title("Reward auf fixem Stage-3-Standard")
     ax7.set_xlabel("Episode")
     ax7.set_ylabel("Benchmark Reward")
     ax7.grid(True, alpha=0.3)
@@ -906,7 +926,7 @@ def plot_results(
     ax10 = axs3[0, 1]
     for stage, (x_vals, y_vals) in stage_area_curves.items():
         ax10.plot(x_vals, y_vals, linewidth=2.2, color=stage_colors.get(stage, None), label=f"Stage {stage}")
-    ax10.set_title("Flaeche je Stage (MA 25)")
+    ax10.set_title("Flaeche je Stage lokal (MA 25)")
     ax10.set_xlabel("Episode innerhalb der Stage")
     ax10.set_ylabel("Fläche")
     ax10.grid(True, alpha=0.3)
@@ -915,7 +935,7 @@ def plot_results(
     ax11 = axs3[1, 0]
     for stage, (x_vals, y_vals) in benchmark_success_curves.items():
         ax11.plot(x_vals, y_vals, linewidth=2.2, color=stage_colors.get(stage, None), label=f"Train in Stage {stage}")
-    ax11.set_title("Stage-3 Success je Trainings-Stage")
+    ax11.set_title("Stage-3-Benchmark-Success je Trainings-Stage")
     ax11.set_xlabel("Episode")
     ax11.set_ylabel("Erfolgsquote in %")
     ax11.set_ylim(0, 100)
@@ -927,7 +947,7 @@ def plot_results(
         ax12.plot(benchmark_episode_points, benchmark_area_history, alpha=0.20, color="tab:orange", label="Stage-3 Benchmark Area")
         ax12.plot(benchmark_episode_points, benchmark_area_ma, linewidth=2.5, color="tab:orange", label="Benchmark Area MA")
     add_stage_background(ax12, stage_history)
-    ax12.set_title("Flaeche auf Stage-3-Standard")
+    ax12.set_title("Flaeche auf fixem Stage-3-Standard")
     ax12.set_xlabel("Episode")
     ax12.set_ylabel("Area")
     ax12.grid(True, alpha=0.3)
@@ -1017,7 +1037,7 @@ def main():
     ppo_epochs = 4
     ppo_minibatch_size = 256
     ppo_clip_epsilon = 0.2
-    antagonist_prob = 0.0
+    antagonist_prob = 0.08
     use_antagonist = True
     final_eval_temperatures = [0.75]
     final_eval_episodes_per_temperature = 80 if quick_test else 360
@@ -1067,6 +1087,8 @@ def main():
         stage_endpoints = (320, 680, 980, episodes)
     else:
         stage_endpoints = (800, 1800, 2600, episodes)
+    stage3_refinement_start = stage_endpoints[2] + int(0.60 * (episodes - stage_endpoints[2]))
+    stage3_final_start = stage_endpoints[2] + int(0.82 * (episodes - stage_endpoints[2]))
 
     def curriculum_stage_for_episode(episode: int) -> int:
         if episode <= stage_endpoints[0]:
@@ -1116,6 +1138,16 @@ def main():
         progress = (ep - 1) / max(1, episodes - 1)
         entropy_weight = entropy_weight_start + progress * (entropy_weight_end - entropy_weight_start)
         current_lr = learning_rate
+        if stage == 3:
+            if ep >= stage3_final_start:
+                current_lr = learning_rate * 0.45
+                entropy_weight *= 0.55
+            elif ep >= stage3_refinement_start:
+                current_lr = learning_rate * 0.70
+                entropy_weight *= 0.80
+
+        for group in optimizer.param_groups:
+            group["lr"] = current_lr
 
         batch_obs.append(observations.detach())
         batch_actions.append(actions.detach())

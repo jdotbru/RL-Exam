@@ -1,6 +1,6 @@
 Final Stage Evaluation (360 stochastic rollouts across T=0.75)
-  success_rate= 25.6% | best_success_area=1.012 | best_success_straight=0.70
-  good_triangle_rate=  1.1% | best_good_area=0.094 | best_good_straight=0.76
-  best_overall: area=1.012, straight=0.70, extra_corners=2, success=True
+  success_rate= 15.6% | best_success_area=0.257 | best_success_straight=0.48
+  good_triangle_rate=  1.4% | best_good_area=0.257 | best_good_straight=0.48
+  best_overall: area=0.257, straight=0.48, extra_corners=0, success=True
   Temperature sweep:
-    T=0.75 | success= 25.6% | good=  1.1% | best_area=1.382 | best_straight=0.93
+    T=0.75 | success= 15.6% | good=  1.4% | best_area=0.710 | best_straight=0.90
