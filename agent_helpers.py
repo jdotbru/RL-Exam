@@ -16,12 +16,8 @@ def choose_antagonist_action(prob: float = 0.0) -> int:
     return 0
 
 
-def compute_gae(
-    rewards: list[float],
-    values: list[torch.Tensor],
-    gamma: float,
-    gae_lambda: float,
-) -> tuple[torch.Tensor, torch.Tensor]:
+def compute_gae(rewards: list[float], values: list[torch.Tensor], gamma: float, gae_lambda: float) -> tuple[torch.Tensor, torch.Tensor]:
+    #Berechnet advantages und value targets um aus dem reward die Trainingssignale für das PPO Netz zu erhalten
     values_t = torch.stack(values)
     next_values = torch.cat([values_t[1:], torch.zeros(1, dtype=values_t.dtype)])
     rewards_t = torch.tensor(rewards, dtype=torch.float32)
@@ -42,6 +38,7 @@ def compute_gae(
 
 
 def episode_area(env) -> float:
+    #Gibt Dreiecksfläche zurück wenn zwei Ecken existieren
     if env.corner1 is None or env.corner2 is None:
         return 0.0
     try:
@@ -51,6 +48,7 @@ def episode_area(env) -> float:
 
 
 def moving_average(x: list[float], window: int = 25) -> np.ndarray:
+    #Berechnet für einen übergebenen Wert für jede Episode den Durchschnitt der letzten 25 Episoden, die ersten 25 Werte sind gleich
     x = np.asarray(x, dtype=np.float32)
     if len(x) == 0:
         return x
@@ -63,6 +61,7 @@ def moving_average(x: list[float], window: int = 25) -> np.ndarray:
 
 
 def moving_success_average(x: list[float], success_mask: list[int], window: int = 25) -> np.ndarray:
+    #Berechnet für einen übergebenen Wert für jede erfolgreiche Episode den Durchschnitt der letzten 25 Episoden , die ersten 25 Werte sind gleich
     values = np.asarray(x, dtype=np.float32)
     mask = np.asarray(success_mask, dtype=np.float32)
     if len(values) == 0:
@@ -80,31 +79,8 @@ def moving_success_average(x: list[float], success_mask: list[int], window: int 
     return result
 
 
-def stagewise_reward_curves(
-    reward_history: list[float],
-    stage_history: list[int],
-    window: int = 25,
-) -> dict[int, tuple[np.ndarray, np.ndarray]]:
-    curves: dict[int, tuple[np.ndarray, np.ndarray]] = {}
-    rewards = np.asarray(reward_history, dtype=np.float32)
-    stages = np.asarray(stage_history, dtype=np.int32)
-    for stage in sorted(set(int(s) for s in stages.tolist())):
-        idx = np.where(stages == stage)[0]
-        if len(idx) == 0:
-            continue
-        stage_rewards = rewards[idx]
-        x = np.arange(1, len(stage_rewards) + 1, dtype=np.int32)
-        y = moving_average(stage_rewards.tolist(), window)
-        curves[int(stage)] = (x, y)
-    return curves
-
-
-def stagewise_metric_curves(
-    values: list[float],
-    stage_history: list[int],
-    window: int = 25,
-    multiplier: float = 1.0,
-) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+def stagewise_metric_curves(values: list[float], stage_history: list[int], window: int = 25, multiplier: float = 1.0,) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+    #Berechnet geglättete  Kurve für eine übergebene Metrik pro Stage
     curves: dict[int, tuple[np.ndarray, np.ndarray]] = {}
     metric_values = np.asarray(values, dtype=np.float32)
     stages = np.asarray(stage_history, dtype=np.int32)
@@ -119,13 +95,8 @@ def stagewise_metric_curves(
     return curves
 
 
-def stagewise_benchmark_curves(
-    episode_points: list[int],
-    values: list[float],
-    benchmark_stage_history: list[int],
-    window: int = 5,
-    multiplier: float = 1.0,
-) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+def stagewise_benchmark_curves(episode_points: list[int], values: list[float], benchmark_stage_history: list[int], window: int = 5, multiplier: float = 1.0,) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+    #Berechnet Kurve über alle Episoden über gegebene Metrik pro Stage auf Basis von Checkpoints
     curves: dict[int, tuple[np.ndarray, np.ndarray]] = {}
     if not episode_points:
         return curves

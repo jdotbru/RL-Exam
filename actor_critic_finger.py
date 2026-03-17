@@ -17,23 +17,14 @@ from agent_helpers import (
 )
 from fingerTriangleEnv import FingerTriangleEnv
 from plotting_helpers import (
-    best_form_quality_score,
-    best_form_variant,
     build_progress_showcases,
-    build_recent_triangle_showcases,
     build_sampler_showcases,
-    build_success_showcases,
     episode_quality_score,
     plot_results,
-    visually_closed,
-    visually_closed_score,
 )
 
-
-# -------------------------------------------------
-# Echter Actor-Critic: gemeinsames Netz mit 2 Köpfen
-# -------------------------------------------------
 class ActorCriticNet(nn.Module):
+    # Actor-Critic: gemeinsames Netz mit 2 Köpfen
     def __init__(self, obs_dim: int, n_actions: int = 27):
         super().__init__()
         self.shared = nn.Sequential(
@@ -54,6 +45,7 @@ class ActorCriticNet(nn.Module):
 
 @dataclass
 class EpisodeResult:
+    #Definition eines Episodenresults
     episode: int
     reward: float
     area: float
@@ -81,22 +73,13 @@ class EpisodeResult:
     terminal_area_bonus: float = 0.0
     best_form_snapshot: dict | None = None
            
-
-
-# -------------------------------------------------
-# Eine Episode sammeln
-# -------------------------------------------------
-def run_episode(
-    env: FingerTriangleEnv,
-    model: ActorCriticNet,
-    gamma: float,
-    gae_lambda: float,
-    antagonist_prob: float,
-    deterministic: bool = False,
-    sampling_temperature: float = 1.0,
-):
+def run_episode(env: FingerTriangleEnv,model: ActorCriticNet,gamma: float,gae_lambda: float,antagonist_prob: float,deterministic: bool = False,sampling_temperature: float = 1.0,):
+    #Eine Episode ausführen
+    
+    #Environment zurücksetzten
     obs, _ = env.reset()
 
+    #Variablen initialisieren
     observations: list[np.ndarray] = []
     actions: list[int] = []
     log_probs: list[torch.Tensor] = []
@@ -122,8 +105,11 @@ def run_episode(
     }
 
     while not (done or truncated):
+        #Steps durchführen bis die Episode beendet wird
         obs_t = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
         logits, value = model(obs_t)
+        
+        #Auswahl der Aktion deterministisch oder nicht
         if deterministic:
             dist = torch.distributions.Categorical(logits=logits)
             protagonist_action = torch.argmax(logits, dim=-1)
@@ -137,12 +123,17 @@ def run_episode(
             "antagonist": choose_antagonist_action(antagonist_prob),
         }
 
+        #Step durchführen
         next_obs, reward, done, truncated, info = env.step(action)
 
+        #Werte aus Step speichern
         observations.append(np.array(obs, dtype=np.float32))
         actions.append(int(protagonist_action.item()))
+        #logarithmus der Wahrscheinlichkeit der Aktion
         log_probs.append(dist.log_prob(protagonist_action).squeeze())
+        #Bewertung des Critics des Zustands
         values.append(value.squeeze())
+        #Streuung der Policy
         entropies.append(dist.entropy().squeeze())
         rewards.append(float(reward))
 
@@ -174,42 +165,27 @@ def run_episode(
         best_form_snapshot=env.bestFormSnapshot,
     )
 
+    #Umwandlung in Tensoren für das Netz
     observations_t = torch.tensor(np.asarray(observations, dtype=np.float32), dtype=torch.float32)
     actions_t = torch.tensor(actions, dtype=torch.int64)
     log_probs_t = torch.stack(log_probs).detach()
     entropies_t = torch.stack(entropies)
-    advantages_t, value_targets_t = compute_gae(
-        rewards=rewards,
-        values=values,
-        gamma=gamma,
-        gae_lambda=gae_lambda,
-    )
+    advantages_t, value_targets_t = compute_gae(rewards=rewards, values=values, gamma=gamma, gae_lambda=gae_lambda)
     values_t = torch.stack(values)
 
     return result, observations_t, actions_t, log_probs_t, values_t, advantages_t, value_targets_t, entropies_t
 
 
-def evaluate_deterministic_policy(
-    env: FingerTriangleEnv,
-    model: ActorCriticNet,
-    gamma: float,
-    gae_lambda: float,
-    episodes: int = 20,
-) -> dict[str, float]:
+def evaluate_deterministic_policy(env: FingerTriangleEnv, model: ActorCriticNet, gamma: float, gae_lambda: float, episodes: int = 20) -> dict[str, float]:
+    #Bewertet den Outcome wenn deterministisch immer die wahrscheinlichste Aktion genommen wird
     rewards = []
     areas = []
     successes = []
 
     with torch.no_grad():
         for _ in range(episodes):
-            result, _, _, _, _, _, _, _ = run_episode(
-                env=env,
-                model=model,
-                gamma=gamma,
-                gae_lambda=gae_lambda,
-                antagonist_prob=0.0,
-                deterministic=True,
-            )
+            #Durchführung von Episoden mit deterministischer Policy
+            result, _, _, _, _, _, _, _ = run_episode(env=env, model=model, gamma=gamma, gae_lambda=gae_lambda, antagonist_prob=0.0, deterministic=True)
             rewards.append(result.reward)
             areas.append(result.area)
             successes.append(int(result.success))
@@ -221,14 +197,9 @@ def evaluate_deterministic_policy(
     }
 
 
-def collect_evaluation_rollouts(
-    env: FingerTriangleEnv,
-    model: ActorCriticNet,
-    gamma: float,
-    gae_lambda: float,
-    episodes: int = 60,
-    sampling_temperature: float = 1.0,
-) -> list[EpisodeResult]:
+def collect_evaluation_rollouts(env: FingerTriangleEnv, model: ActorCriticNet, gamma: float, gae_lambda: float, episodes: int = 60, sampling_temperature: float = 1.0) -> list[EpisodeResult]:
+    #Ausführung von Episoden nach dem Training um die fertige Policy zu testen
+    
     results: list[EpisodeResult] = []
 
     with torch.no_grad():
@@ -249,27 +220,16 @@ def collect_evaluation_rollouts(
     return results
 
 
-def collect_temperature_sweep_rollouts(
-    env: FingerTriangleEnv,
-    model: ActorCriticNet,
-    gamma: float,
-    gae_lambda: float,
-    temperatures: list[float],
-    episodes_per_temperature: int,
-) -> tuple[list[EpisodeResult], list[dict[str, float]]]:
+def collect_temperature_sweep_rollouts(env: FingerTriangleEnv, model: ActorCriticNet, gamma: float, gae_lambda: float, temperatures: list[float], episodes_per_temperature: int) -> tuple[list[EpisodeResult], list[dict[str, float]]]:
+    #Führt die Policy mit verschiedenen temperature-Werten aus um zu sehen, bei welcher Stärke von "greedyness"  die Policy am besten funktioniert
+    
     all_results: list[EpisodeResult] = []
     summaries: list[dict[str, float]] = []
 
     next_episode = 1
     for temperature in temperatures:
-        temp_results = collect_evaluation_rollouts(
-            env=env,
-            model=model,
-            gamma=gamma,
-            gae_lambda=gae_lambda,
-            episodes=episodes_per_temperature,
-            sampling_temperature=temperature,
-        )
+        temp_results = collect_evaluation_rollouts(env=env, model=model, gamma=gamma, gae_lambda=gae_lambda, episodes=episodes_per_temperature, sampling_temperature=temperature)
+        
         for result in temp_results:
             result.episode = next_episode
             next_episode += 1
@@ -291,6 +251,7 @@ def collect_temperature_sweep_rollouts(
 
 
 def checkpoint_score_tuple(results: list[EpisodeResult]) -> tuple[float, float, float, float]:
+    #Berechnet Werte, welche darüber entscheiden, ob das aktuelle Modell der bisher beste Checkpoint ist
     if not results:
         return (0.0, 0.0, 0.0, 0.0)
 
@@ -313,6 +274,7 @@ def main():
     np.random.seed(seed)
     torch.manual_seed(seed)
 
+    #Variablen um Laufdauer zu entscheiden
     quick_test = True
     long_run = False
 
@@ -323,6 +285,8 @@ def main():
         episodes = 6000
     else:
         episodes = 3000
+    
+    #einstellbare Parameter für Lernveränderung    
     gamma = 0.99
     gae_lambda = 0.95
     learning_rate = 3e-4
@@ -333,7 +297,7 @@ def main():
     ppo_epochs = 4
     ppo_minibatch_size = 256
     ppo_clip_epsilon = 0.2
-    antagonist_prob = 0.08
+    antagonist_prob = 0.1
     use_antagonist = True
     final_eval_temperatures = [0.75]
     final_eval_episodes_per_temperature = 80 if quick_test else 360
@@ -343,15 +307,18 @@ def main():
     best_checkpoint_path = "best_triangle_checkpoint.pt"
     final_summary_path = "final_eval_summary.txt"
 
+    #Initialisierung von Environments
     env = FingerTriangleEnv(givenUseAntagonist=use_antagonist)
     eval_env = FingerTriangleEnv(givenUseAntagonist=use_antagonist)
     benchmark_env = FingerTriangleEnv(givenUseAntagonist=use_antagonist)
     benchmark_env.set_curriculum_stage(3)
     obs_dim = int(np.prod(env.observation_space.shape))
 
+    #Initialisierung des Netzes
     model = ActorCriticNet(obs_dim)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
+    #Initialisierung von Speicherlisten
     reward_history: list[float] = []
     area_history: list[float] = []
     success_history: list[int] = []
@@ -378,16 +345,20 @@ def main():
     best_checkpoint_score = (-1.0, -1.0, -1.0, -1.0)
     best_checkpoint_episode = 0
 
+    #Stage-definition für verschiedene Run-Optionen
     if quick_test:
         stage_endpoints = (320, 680, 980, episodes)
     elif long_run:
         stage_endpoints = (1600, 3600, 5200, episodes)
     else:
         stage_endpoints = (800, 1800, 2600, episodes)
+       
+    #Einteilung von stage3 in zwei Phasen 
     stage3_refinement_start = stage_endpoints[2] + int(0.60 * (episodes - stage_endpoints[2]))
     stage3_final_start = stage_endpoints[2] + int(0.82 * (episodes - stage_endpoints[2]))
 
     def curriculum_stage_for_episode(episode: int) -> int:
+        #Gibt Lernstage für übergebene Episode zurück
         if episode <= stage_endpoints[0]:
             return 0
         if episode <= stage_endpoints[1]:
@@ -396,9 +367,8 @@ def main():
             return 2
         return 3
 
-    print("Starte Actor-Critic-Lauf ...")
-    print("Der Actor lernt die Policy, der Critic lernt den Zustandswert V(s).")
-    print("Optimiert wird: PPO-Clip-Loss + Critic-Loss - Entropiebonus.\n")
+    print("Starte Actor-Critic-Lauf ...\n")
+
     if quick_test:
         print("Modus: 'Quick Test' \n")
     elif long_run:
@@ -406,6 +376,7 @@ def main():
     else:
         print("Modus: 'Normal Run' \n")
 
+    #Werte-Sammlungen initialisieren
     episodes_since_update = 0
     batch_obs: list[torch.Tensor] = []
     batch_actions: list[torch.Tensor] = []
@@ -414,20 +385,19 @@ def main():
     batch_value_targets: list[torch.Tensor] = []
 
     for ep in range(1, episodes + 1):
+        #Durchführung der angegebenen Anzahl an Episoden
+        
+        #Lern-Stage setzen
         stage = curriculum_stage_for_episode(ep)
         env.set_curriculum_stage(stage)
         eval_env.set_curriculum_stage(stage)
 
-        result, observations, actions, old_log_probs, values, advantages, value_targets, entropies = run_episode(
-            env=env,
-            model=model,
-            gamma=gamma,
-            gae_lambda=gae_lambda,
-            antagonist_prob=antagonist_prob,
-        )
+        #Durchführung der Episode
+        result, observations, actions, old_log_probs, values, advantages, value_targets, entropies = run_episode(env, model, gamma, gae_lambda, antagonist_prob)
         result.episode = ep
         result.curriculum_stage = stage
 
+        #Actor und critic losses berechnen
         logits, predicted_values = model(observations)
         dist = torch.distributions.Categorical(logits=logits)
         current_log_probs = dist.log_prob(actions)
@@ -436,10 +406,14 @@ def main():
         clipped = torch.clamp(ratio, 1.0 - ppo_clip_epsilon, 1.0 + ppo_clip_epsilon) * advantages.detach()
         actor_loss = -torch.min(unclipped, clipped).mean()
         critic_loss = F.mse_loss(predicted_values, value_targets)
+        
+        #training-Parameter aktualisieren
         entropy_bonus = entropies.mean()
         progress = (ep - 1) / max(1, episodes - 1)
         entropy_weight = entropy_weight_start + progress * (entropy_weight_end - entropy_weight_start)
         current_lr = learning_rate
+        
+        #Learning rate am Ende runtersetzen um nur Feinjustierungen durchzuführen ohne die Policy instabil zu machen
         if stage == 3:
             if ep >= stage3_final_start:
                 current_lr = learning_rate * 0.45
@@ -448,9 +422,11 @@ def main():
                 current_lr = learning_rate * 0.70
                 entropy_weight *= 0.80
 
+        #Aktualisieren der Learning Rate
         for group in optimizer.param_groups:
             group["lr"] = current_lr
 
+        #Episoden-Metriken in sammlungen hinzufügen
         batch_obs.append(observations.detach())
         batch_actions.append(actions.detach())
         batch_old_log_probs.append(old_log_probs.detach())
@@ -458,7 +434,10 @@ def main():
         batch_value_targets.append(value_targets.detach())
         episodes_since_update += 1
 
+        #Wenn bestimmte Episodenanzahl erreich ist wird das Netzwerk aktualisiert
         if episodes_since_update >= update_batch_episodes or ep == episodes:
+            
+            #Alle gesammelten Tensoren zu einem Tensor zusammenfügen
             obs_batch = torch.cat(batch_obs, dim=0)
             action_batch = torch.cat(batch_actions, dim=0)
             old_log_prob_batch = torch.cat(batch_old_log_probs, dim=0)
@@ -468,21 +447,28 @@ def main():
             num_samples = obs_batch.shape[0]
             minibatch_size = min(ppo_minibatch_size, num_samples)
 
+            #Optimierung des PPo-Netzes
             for _ in range(ppo_epochs):
                 permutation = torch.randperm(num_samples)
+                #Aufteilen der Batches in kleine Sammlungen
                 for start_idx in range(0, num_samples, minibatch_size):
+                    #kleine Sammlung wählen
                     batch_idx = permutation[start_idx:start_idx + minibatch_size]
+                    
+                    #kleine Batches aus den großen Batches nehmen
                     mb_obs = obs_batch[batch_idx]
                     mb_actions = action_batch[batch_idx]
                     mb_old_log_probs = old_log_prob_batch[batch_idx]
                     mb_advantages = advantage_batch[batch_idx]
                     mb_value_targets = value_target_batch[batch_idx]
 
+                    #Netzwerk auf den kleinen Sammlungen laufen lassen
                     logits, mb_values = model(mb_obs)
                     dist = torch.distributions.Categorical(logits=logits)
                     mb_log_probs = dist.log_prob(mb_actions)
                     mb_entropy = dist.entropy().mean()
 
+                    #Losses berechnen
                     ratio = torch.exp(mb_log_probs - mb_old_log_probs)
                     unclipped = ratio * mb_advantages
                     clipped = torch.clamp(ratio, 1.0 - ppo_clip_epsilon, 1.0 + ppo_clip_epsilon) * mb_advantages
@@ -490,11 +476,13 @@ def main():
                     ppo_critic_loss = F.mse_loss(mb_values, mb_value_targets)
                     ppo_loss = ppo_actor_loss + critic_weight * ppo_critic_loss - entropy_weight * mb_entropy
 
+                    #Aktualisieren der Modelparameter
                     optimizer.zero_grad()
                     ppo_loss.backward()
                     nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                     optimizer.step()
 
+            #Tensoreninhalte löschen
             batch_obs.clear()
             batch_actions.clear()
             batch_old_log_probs.clear()
@@ -506,6 +494,7 @@ def main():
         result.critic_loss = float(critic_loss.item())
         result.entropy = float(entropy_bonus.item())
 
+        #Metriken in Speicher anhängen
         reward_history.append(result.reward)
         area_history.append(result.area)
         success_history.append(int(result.success))
@@ -524,6 +513,7 @@ def main():
         stage_history.append(stage)
         training_results.append(result)
 
+        #BErechnung Ausgabe von Benchmarks alle 50 Episoden
         if ep % 50 == 0 or ep == 1:
             avg_reward = float(np.mean(reward_history[-50:]))
             avg_area = float(np.mean(area_history[-50:]))
@@ -538,20 +528,10 @@ def main():
             mean_shaping_reward = float(np.mean(shaping_reward_history[-50:]))
             mean_terminal_reward = float(np.mean(terminal_reward_history[-50:]))
             mean_terminal_area_bonus = float(np.mean(terminal_area_bonus_history[-50:]))
-            eval_stats = evaluate_deterministic_policy(
-                env=eval_env,
-                model=model,
-                gamma=gamma,
-                gae_lambda=gae_lambda,
-                episodes=periodic_eval_episodes,
-            )
-            stage3_benchmark_stats = evaluate_deterministic_policy(
-                env=benchmark_env,
-                model=model,
-                gamma=gamma,
-                gae_lambda=gae_lambda,
-                episodes=periodic_eval_episodes,
-            )
+            eval_stats = evaluate_deterministic_policy(env=eval_env, model=model, gamma=gamma, gae_lambda=gae_lambda, episodes=periodic_eval_episodes)
+            stage3_benchmark_stats = evaluate_deterministic_policy(env=benchmark_env, model=model, gamma=gamma, gae_lambda=gae_lambda, episodes=periodic_eval_episodes)
+            
+            #Benchmark-Werte in Speicher anhängen
             benchmark_episode_points.append(ep)
             benchmark_reward_history.append(stage3_benchmark_stats["mean_reward"])
             benchmark_success_history.append(stage3_benchmark_stats["success_rate"])
@@ -581,17 +561,11 @@ def main():
                 f", shapeR={mean_shaping_reward:>7.2f}, termR={mean_terminal_reward:>7.2f}, areaB={mean_terminal_area_bonus:>7.2f}"
             )
 
+        #nach Episode 800 wird regelmäßig geprüft ob die Episode der beste neue Checkpoint ist
         if ep >= 800 and (ep % checkpoint_eval_every == 0 or ep == episodes):
             checkpoint_env = FingerTriangleEnv(givenUseAntagonist=use_antagonist)
             checkpoint_env.set_curriculum_stage(3)
-            checkpoint_results = collect_evaluation_rollouts(
-                env=checkpoint_env,
-                model=model,
-                gamma=gamma,
-                gae_lambda=gae_lambda,
-                episodes=checkpoint_eval_episodes,
-                sampling_temperature=0.75,
-            )
+            checkpoint_results = collect_evaluation_rollouts(env=checkpoint_env, model=model, gamma=gamma, gae_lambda=gae_lambda, episodes=checkpoint_eval_episodes, sampling_temperature=0.75)
             checkpoint_score = checkpoint_score_tuple(checkpoint_results)
             if checkpoint_score > best_checkpoint_score:
                 best_checkpoint_score = checkpoint_score
@@ -608,6 +582,7 @@ def main():
                     f"bestSuccArea={checkpoint_score[3]:.3f}"
                 , flush=True)
 
+    #Nach Episoden den besten Checkpoint laden
     if best_checkpoint_state is not None:
         torch.save(
             {
@@ -628,22 +603,17 @@ def main():
         , flush=True)
 
     try:
+        #mit gelernter Policy noch einige Episoden durchführen und beste Formen speichern
         final_eval_env = FingerTriangleEnv(givenUseAntagonist=use_antagonist)
         final_eval_env.set_curriculum_stage(3)
-        final_eval_results, final_eval_temperature_summaries = collect_temperature_sweep_rollouts(
-            env=final_eval_env,
-            model=model,
-            gamma=gamma,
-            gae_lambda=gae_lambda,
-            temperatures=final_eval_temperatures,
-            episodes_per_temperature=final_eval_episodes_per_temperature,
-        )
+        final_eval_results, final_eval_temperature_summaries = collect_temperature_sweep_rollouts(env=final_eval_env, model=model, gamma=gamma, gae_lambda=gae_lambda, temperatures=final_eval_temperatures, episodes_per_temperature=final_eval_episodes_per_temperature)
 
         final_successes = [result for result in final_eval_results if result.success]
         final_good_successes = [result for result in final_successes if result.good_triangle]
         best_eval_success = max(final_successes, key=episode_quality_score, default=None)
         best_eval_overall = max(final_eval_results, key=episode_quality_score, default=None)
 
+        #Output der benchmarks der letzten Rollouts
         summary_lines = [
             (
                 f"Final Stage Evaluation ({len(final_eval_results)} stochastic rollouts "
@@ -690,6 +660,7 @@ def main():
         with open(final_summary_path, "w", encoding="utf-8") as summary_file:
             summary_file.write("\n".join(summary_lines) + "\n")
 
+        #Plotting
         plot_results(
             reward_history=reward_history,
             area_history=area_history,

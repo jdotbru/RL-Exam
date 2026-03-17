@@ -13,7 +13,6 @@ from agent_helpers import (
     moving_success_average,
     stagewise_benchmark_curves,
     stagewise_metric_curves,
-    stagewise_reward_curves,
 )
 
 if TYPE_CHECKING:
@@ -98,26 +97,6 @@ def build_showcase_episodes(candidates: list[tuple[str, EpisodeResult]], limit: 
         if len(selected) >= limit:
             break
     return selected
-
-
-def build_success_showcases(results: list[EpisodeResult], limit: int = 4) -> list[tuple[str, EpisodeResult]]:
-    successes = [result for result in results if result.success]
-    if not successes:
-        return []
-
-    good_successes = [result for result in successes if result.good_triangle]
-    visually_closed_successes = [result for result in successes if visually_closed(result)]
-    visually_closed_good = [result for result in visually_closed_successes if result.good_triangle]
-    score_pool = visually_closed_good or visually_closed_successes or good_successes or successes
-    shape_pool = good_successes or successes
-
-    candidates = [
-        ("Final: Bestes Erfolgs-Ep.", max(score_pool, key=episode_quality_score)),
-        ("Final: Groesste Erfolgs-Flaeche", max(score_pool, key=lambda result: (visually_closed_score(result), result.area))),
-        ("Final: Beste Erfolgs-Form", best_form_variant(max(shape_pool, key=best_form_quality_score))),
-        ("Final: Sauberster Erfolg", min(score_pool, key=lambda result: (result.distance_to_start, result.extra_corners, -result.triangle_straightness, -result.area))),
-    ]
-    return build_showcase_episodes(candidates, limit=limit)
 
 
 def build_sampler_showcases(results: list[EpisodeResult], limit: int = 4) -> list[tuple[str, EpisodeResult]]:
@@ -321,25 +300,20 @@ def plot_results(
     progress_showcases,
 ):
     reward_ma = moving_average(reward_history, 25)
-    area_ma = moving_average(area_history, 25)
     success_ma = moving_average(success_history, 25) * 100.0
     successful_area_ma = moving_success_average(successful_area_history, success_history, 25)
     straightness_ma = moving_average(straightness_history, 25)
     extra_corner_ma = moving_average(extra_corner_history, 25)
-    good_triangle_ma = moving_average(good_triangle_history, 25) * 100.0
     actor_loss_ma = moving_average(actor_loss_history, 25)
     critic_loss_ma = moving_average(critic_loss_history, 25)
     shaping_reward_ma = moving_average(shaping_reward_history, 25)
     terminal_reward_ma = moving_average(terminal_reward_history, 25)
     closure_gap_ma = moving_average(distance_history, 25)
-    stage_reward_curves = stagewise_reward_curves(reward_history, stage_history, 25)
+    stage_reward_curves = stagewise_metric_curves(reward_history, stage_history, 25)
     stage_success_curves = stagewise_metric_curves(success_history, stage_history, 25, multiplier=100.0)
-    stage_good_curves = stagewise_metric_curves(good_triangle_history, stage_history, 25, multiplier=100.0)
     stage_area_curves = stagewise_metric_curves(area_history, stage_history, 25)
-    benchmark_reward_curves = stagewise_benchmark_curves(benchmark_episode_points, benchmark_reward_history, benchmark_stage_history, window=3)
     benchmark_success_curves = stagewise_benchmark_curves(benchmark_episode_points, benchmark_success_history, benchmark_stage_history, window=3, multiplier=1.0)
     benchmark_reward_ma = moving_average(benchmark_reward_history, 3) if benchmark_reward_history else np.array([])
-    benchmark_success_ma = moving_average(benchmark_success_history, 3) if benchmark_success_history else np.array([])
     benchmark_area_ma = moving_average(benchmark_area_history, 3) if benchmark_area_history else np.array([])
     recent_showcases = build_recent_triangle_showcases(training_results, limit=3)
     summary_lines = summarize_training_metrics(

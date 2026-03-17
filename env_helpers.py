@@ -6,6 +6,7 @@ import numpy as np
 
 
 def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
+    #berechnet Winkel zwischen zwei Geraden
     dot = np.dot(v1, v2)
     norm = np.linalg.norm(v1) * np.linalg.norm(v2)
 
@@ -17,6 +18,7 @@ def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
 
 
 def calculate_new_position(angles: np.ndarray, link_lengths: np.ndarray) -> np.ndarray:
+    #berechnet aus den Gelenkwinkeln die Fingerspitzenposition
     p1, p2, p3 = link_lengths
     a1, a2, a3 = np.deg2rad(angles)
 
@@ -30,6 +32,8 @@ def calculate_new_position(angles: np.ndarray, link_lengths: np.ndarray) -> np.n
 
 
 def calculate_triangle_area(corner1: np.ndarray, corner2: np.ndarray, corner3: np.ndarray) -> float:
+    #berechnet die Fläche eines Dreiecks
+    #Formel: 0,5 * [det(corner2 - corner1, corner3 – corner 1)]
     v1 = corner2 - corner1
     v2 = corner3 - corner1
     det = v1[0] * v2[1] - v1[1] * v2[0]
@@ -37,6 +41,7 @@ def calculate_triangle_area(corner1: np.ndarray, corner2: np.ndarray, corner3: n
 
 
 def normalize_vector(vector: np.ndarray) -> np.ndarray:
+    #Berechnet Vektorrichtung auf Werte unter 1, sodass nur Richtung statt Länge entscheidet
     norm = np.linalg.norm(vector)
     if norm < 1e-6:
         return np.zeros_like(vector, dtype=np.float32)
@@ -44,6 +49,7 @@ def normalize_vector(vector: np.ndarray) -> np.ndarray:
 
 
 def point_line_distance(point: np.ndarray, start: np.ndarray, end: np.ndarray) -> float:
+    #Berechnet die Differenz eines Punktes zu einer Linie
     segment = end - start
     seg_norm = np.linalg.norm(segment)
     if seg_norm < 1e-6:
@@ -57,6 +63,7 @@ def point_line_distance(point: np.ndarray, start: np.ndarray, end: np.ndarray) -
 
 
 def segment_mean_deviation(start: np.ndarray, end: np.ndarray, points: list[np.ndarray]) -> float:
+    #Berechnet durchschnittliche Abweichung aller Punkte auf einer Kante zu der Linie zwischen Start und Endpunkt
     if len(points) <= 2:
         return 0.0
     distances = [point_line_distance(point, start, end) for point in points[1:-1]]
@@ -66,6 +73,7 @@ def segment_mean_deviation(start: np.ndarray, end: np.ndarray, points: list[np.n
 
 
 def is_corner(env) -> bool:
+    #Bildet Kanten ausgehend von einem Punkt zu Punkten vor und nach dem Punkt, berechnet den Winkel und entscheidet, ob es eine Ecke ist
     if len(env.positionSaver) < 2 * env.cornerWindow + 1:
         return False
 
@@ -84,6 +92,7 @@ def is_corner(env) -> bool:
 
 
 def get_triangle_edge_lengths(env) -> tuple[float, float, float]:
+    #berechnet Länge aller Kanten
     if env.corner1 is None or env.corner2 is None:
         return 0.0, 0.0, 0.0
     edge1 = float(np.linalg.norm(env.corner1 - env.startPos))
@@ -93,6 +102,7 @@ def get_triangle_edge_lengths(env) -> tuple[float, float, float]:
 
 
 def get_triangle_edge_metrics(env) -> tuple[float, float]:
+    #Gibt durchschnittliche Kantenlänge und Kantengewichtung zurück
     edge1, edge2, edge3 = get_triangle_edge_lengths(env)
     edges = np.array([edge1, edge2, edge3], dtype=np.float32)
     mean_edge_length = float(np.mean(edges))
@@ -104,10 +114,12 @@ def get_triangle_edge_metrics(env) -> tuple[float, float]:
 
 
 def get_segment_points(env, start_idx: int, end_idx: int) -> list[np.ndarray]:
+    #Gibt alle Punkte einer Phase zurücl
     return [np.asarray(point) for point in env.positionSaver[start_idx : end_idx + 1]]
 
 
 def evaluate_triangle_shape(env) -> tuple[float, float, float]:
+    #Gibt Fläche, durchschnittliche Abweichung von der Kante und den Straightness Score zurück
     if env.corner1 is None or env.corner2 is None or env.corner1_idx is None or env.corner2_idx is None:
         return 0.0, 0.0, 0.0
 
@@ -129,6 +141,7 @@ def evaluate_triangle_shape(env) -> tuple[float, float, float]:
 
 
 def is_good_triangle(env) -> bool:
+    #Vergleicht Metriken des Dreiecks mit Schwellwerten und definiert, ob das Dreieck als gut angesehen werden kann
     if env.corner1 is None or env.corner2 is None or env.currPhase != 2:
         return False
 
@@ -144,6 +157,7 @@ def is_good_triangle(env) -> bool:
 
 
 def calculate_turn_angle(p1: np.ndarray, p2: np.ndarray, p3: np.ndarray) -> float:
+    #Berechnet Winkel an einem Punkt
     v1 = p1 - p2
     v2 = p3 - p2
     if np.linalg.norm(v1) > 1e-6 and np.linalg.norm(v2) > 1e-6:
@@ -152,25 +166,29 @@ def calculate_turn_angle(p1: np.ndarray, p2: np.ndarray, p3: np.ndarray) -> floa
 
 
 def get_current_move_direction(env) -> np.ndarray:
+    #Gibt Richtung anhand der letzten zwei Punkte zurück
     if len(env.positionSaver) < 2:
         return np.zeros(2, dtype=np.float32)
     return normalize_vector(env.positionSaver[-1] - env.positionSaver[-2])
 
 
 def maybe_initialize_phase_target_direction(env) -> None:
+    #Gibt Richtung zurück zum Start vor wenn der Algorithmus sich in Phase 2 befindet
     if env.currPhase == 2 and env.corner2 is not None and env.phase2_target_direction is None:
         direction = env.startPos - env.corner2
         if np.linalg.norm(direction) >= env.min_segment_len:
             env.phase2_target_direction = normalize_vector(direction)
 
 
-def get_phase_anchor(env) -> Optional[np.ndarray]:
+def get_corner2(env) -> Optional[np.ndarray]:
+    #Gibt Ecke 2 zurück
     if env.currPhase == 2:
         return env.corner2
     return None
 
 
 def get_phase_target_direction(env) -> np.ndarray:
+    #Gibt Zielrichtung in Phase 2 zurück
     if env.currPhase == 2:
         if env.phase2_target_direction is not None:
             return env.phase2_target_direction
@@ -180,7 +198,8 @@ def get_phase_target_direction(env) -> np.ndarray:
 
 
 def get_phase_line_deviation(env, position: Optional[np.ndarray] = None) -> float:
-    anchor = get_phase_anchor(env)
+    #Gibt Abweichung eines Punktes in Phase 2 zurück
+    anchor = get_corner2(env)
     direction = get_phase_target_direction(env)
     if anchor is None or np.linalg.norm(direction) < 1e-6:
         return 0.0
@@ -190,7 +209,8 @@ def get_phase_line_deviation(env, position: Optional[np.ndarray] = None) -> floa
 
 
 def get_phase_progress(env, position: Optional[np.ndarray] = None) -> float:
-    anchor = get_phase_anchor(env)
+    #Gibt Fortschritt in Richtung des Ziels in Phase 2 zurück
+    anchor = get_corner2(env)
     direction = get_phase_target_direction(env)
     if anchor is None or np.linalg.norm(direction) < 1e-6:
         return 0.0
@@ -199,6 +219,7 @@ def get_phase_progress(env, position: Optional[np.ndarray] = None) -> float:
 
 
 def get_effective_closure_radius(env) -> float:
+    #Gibt effektiven Abschlussradius auf Basis der Kantenlängen zurück
     if env.corner1 is None or env.corner2 is None:
         return float(env.closureRadius)
 
@@ -212,6 +233,7 @@ def get_effective_closure_radius(env) -> float:
 
 
 def get_return_line_deviation(env, position: Optional[np.ndarray] = None) -> float:
+    #Gibt Abweichung in Phase 2 zurück
     if env.corner2 is None:
         return 0.0
     position = env.currPos if position is None else position
@@ -219,6 +241,7 @@ def get_return_line_deviation(env, position: Optional[np.ndarray] = None) -> flo
 
 
 def get_return_direction_alignment(env, prev_pos: np.ndarray, curr_pos: np.ndarray) -> float:
+    #Misst wie nah die aktuelle Richtung mit der Zielrichtung übereinstimmt
     if env.corner2 is None:
         return 0.0
     move_dir = normalize_vector(curr_pos - prev_pos)
@@ -227,6 +250,7 @@ def get_return_direction_alignment(env, prev_pos: np.ndarray, curr_pos: np.ndarr
 
 
 def update_best_form_snapshot(env) -> None:
+    #Prüft ob ein neues bestes Dreieck gebildet wurde und speichert es wenn ja
     if env.currPhase != 2 or env.corner1 is None or env.corner2 is None:
         return
 
@@ -265,12 +289,14 @@ def update_best_form_snapshot(env) -> None:
 
 
 def get_counted_extra_corners(env) -> int:
+    #Gibt Anzahl von extra Ecken zurücl
     if env.curriculum_stage == 2:
         return min(env.extraCornerCount, env.stage2_maxCountedExtraCorners)
     return int(env.extraCornerCount)
 
 
 def cap_late_stage_penalty(env, penalty: float, stage2_cap: float, stage3_cap: float) -> float:
+    #Limitiert die Bestrafung zu späten Zeitpunkten, um die gelernte Policy nicht zu stark zu überschreiben
     if env.curriculum_stage == 2:
         return float(min(penalty, stage2_cap))
     if env.curriculum_stage >= 3:
