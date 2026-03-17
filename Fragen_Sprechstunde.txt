@@ -21,7 +21,12 @@
     -> würde helfen designentscheidungen zu erklären
 2. Inwieweit ist die Nutzung von KI erlaubt?
     -> Designunterstützung, oder sogar Codevorschläge?
-3. Antagonist liest sich aus der AUfgabenstellung als Einführung der reellen Störung bei motorischen Bewegungen
+3. Antagonist liest sich aus der Aufgabenstellung als Einführung der reellen Störung bei motorischen Bewegungen
     -> stimmt das oder ist ein richtiger Antagonisten-Agent gemeint?
 4. Was für eine Störung ist für so einen Antagonisten realistisch? in 10% der Fälle?
 5. Wie genau muss das Ergebnis sein? Ich habe das Gefühl so richtig gut ist die Aufgabe nicht zu lösen
+6. Agent wird laut der Liste gar nicht beleuchtet in der Präsentation, inwiefern sollen wir diesen vorstellen?
+7. Wie sieht das Setup bei der Präsentation aus? Können wir auf den Rechner schauen oder steht er ungünstig?
+8. Was ist mit Code Dokumentation gemeint? Kommentare? Sollen diese in Präsentation gezeigt werden oder ist das nur für den Upload gemeint?
+9. Soll Code Struktur in Präsentation präsentiert werden?
+10. Abgesehen von Antagonisten-Wahrscheinlichkeit, was soll in den Testszenarien noch unterschiedlich sein?

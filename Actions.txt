@@ -1,3 +1,6 @@
+
+
+
             Gelenk 1; Gelenk 2; Gelenk 3
 Aktion 0:      0         0         0
 Aktion 1:      0         0         -0.1
