@@ -253,7 +253,6 @@ def plot_episode(ax, label: str, result: EpisodeResult):
     ax.set_title(
         f"{label}\n"
         f"{id_label} {result.episode} | Stage {result.curriculum_stage}\n"
-        f"A={result.area:.2f}, Straight={result.triangle_straightness:.2f}, dStart={result.distance_to_start:.2f}, Extra={result.extra_corners}, Erfolg={result.success}"
     )
 
     if result.positions is not None and len(result.positions) > 0:

@@ -343,12 +343,12 @@ class FingerTriangleEnv(gym.Env):
             self.reward_Phase2Closure = 11.0
             self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
-            self.reward_Phase2CleanReturn = 0.8
+            self.reward_Phase2CleanReturn = 1.0
             self.reward_Phase1Corner2Spread = 2.5
             self.reward_Phase1Corner1Separation = 0.5
             self.penalty_Phase1PrematureReturn = 0.2
             self.penalty_Phase2AwayFromStart = 8.0
-            self.penalty_Phase2ReturnLineDeviation = 5.2
+            self.penalty_Phase2ReturnLineDeviation = 6.4
             self.penalty_Phase2LateDistance = 1.2
             self.partialAreaScale = 1.0
             self.terminalGapScale = 1.0
@@ -597,7 +597,7 @@ class FingerTriangleEnv(gym.Env):
                 prev_return_deviation = get_return_line_deviation(self, prevPos)
                 curr_return_deviation = get_return_line_deviation(self, self.currPos)
                 shaping_reward += self.penalty_Phase2ReturnLineDeviation * (prev_return_deviation - curr_return_deviation)
-                
+
                 close_ratio = max(0.0, 1.0 - currDistanceToStart / max(1e-6, get_effective_closure_radius(self)))
                 line_ratio = max(0.0, 1.0 - curr_return_deviation / max(1e-6, self.maxMeanLineDeviation))
                 if close_ratio > 0.0 and line_ratio > 0.0:
