@@ -326,7 +326,7 @@ def main():
     ppo_epochs = 4
     ppo_minibatch_size = 256
     ppo_clip_epsilon = 0.2
-    antagonist_prob = 0.08
+    antagonist_prob = 0.05
     use_antagonist = True
     final_eval_temperatures = [0.75]
     final_eval_episodes_per_temperature = 80 if quick_test else 360
