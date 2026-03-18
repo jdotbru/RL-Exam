@@ -11,10 +11,10 @@ Evaluation criteria – Coding assignment:
 1. Clear summary of the problem and solution approach
 2. Demonstration of environment behaviour with example rollouts
 3. Reward function definition and justification
-4. Definition of test scenarios prior to training
+4. Definition of test scenarios prior to training - TO-DO
 5. Code documentation and structure
 6. Demonstration of good policy performance
-7. Quantitative figures of merit and hyperparameter studies
+7. Quantitative figures of merit and hyperparameter studies - TO-DO
 8. Ability to modify code live and explain performance changes
 
 Important:
