@@ -14,7 +14,7 @@ Evaluation criteria – Coding assignment:
 4. Definition of test scenarios prior to training - TO-DO
 5. Code documentation and structure
 6. Demonstration of good policy performance
-7. Quantitative figures of merit and hyperparameter studies - TO-DO
+7. Quantitative figures of merit and hyperparameter studies
 8. Ability to modify code live and explain performance changes
 
 Important:

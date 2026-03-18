@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -322,6 +322,7 @@ def plot_results(
     benchmark_stage_history,
     showcases,
     progress_showcases,
+    show_plots: bool = True,
 ):
     reward_ma = moving_average(reward_history, 25)
     success_ma = moving_average(success_history, 25) * 100.0
@@ -474,4 +475,102 @@ def plot_results(
     summary_ax.set_title("Kennzahlen")
     summary_ax.text(0.0, 1.0, "\n".join(summary_lines), va="top", ha="left", fontsize=10, family="monospace")
     fig4.tight_layout(rect=[0, 0, 1, 0.94])
-    plt.show()
+    if show_plots:
+        plt.show()
+
+
+def format_comparison_metric_table(variants: list[dict[str, Any]]) -> str:
+    headers = ["Metric"] + [str(variant["label"]) for variant in variants]
+    rows = [
+        (
+            "Success %",
+            [f"{variant['metrics']['success_rate']:.1f}" for variant in variants],
+        ),
+        (
+            "Good %",
+            [f"{variant['metrics']['good_triangle_rate']:.1f}" for variant in variants],
+        ),
+        (
+            "Mean Area",
+            [f"{variant['metrics']['mean_area']:.3f}" for variant in variants],
+        ),
+        (
+            "Best Area",
+            [f"{variant['metrics']['best_area']:.3f}" for variant in variants],
+        ),
+        (
+            "Mean Straight",
+            [f"{variant['metrics']['mean_straightness']:.2f}" for variant in variants],
+        ),
+        (
+            "Mean dStart",
+            [f"{variant['metrics']['mean_distance_to_start']:.2f}" for variant in variants],
+        ),
+        (
+            "Mean Reward",
+            [f"{variant['metrics']['mean_reward']:.1f}" for variant in variants],
+        ),
+    ]
+
+    widths = [len(headers[0])]
+    for idx in range(1, len(headers)):
+        widths.append(len(headers[idx]))
+
+    for row_name, values in rows:
+        widths[0] = max(widths[0], len(row_name))
+        for idx, value in enumerate(values, start=1):
+            widths[idx] = max(widths[idx], len(value))
+
+    def format_row(values: list[str]) -> str:
+        return " | ".join(value.ljust(widths[idx]) for idx, value in enumerate(values))
+
+    divider = "-+-".join("-" * width for width in widths)
+    lines = [format_row(headers), divider]
+    for row_name, values in rows:
+        lines.append(format_row([row_name] + values))
+    return "\n".join(lines)
+
+
+def plot_hyperparameter_comparisons(
+    comparisons: list[dict[str, Any]],
+    show_plots: bool = True,
+) -> None:
+    for comparison in comparisons:
+        fig = plt.figure(figsize=(18, 8.8), num=comparison["title"])
+        fig.suptitle(comparison["title"], fontsize=16)
+        grid = fig.add_gridspec(2, 3, height_ratios=[3.0, 1.7])
+
+        legend_handles = []
+        legend_labels = []
+        for idx, variant in enumerate(comparison["variants"][:3]):
+            ax = fig.add_subplot(grid[0, idx])
+            plot_episode(ax, variant["label"], variant["best_result"])
+            if not legend_handles:
+                legend_handles, legend_labels = ax.get_legend_handles_labels()
+
+        table_ax = fig.add_subplot(grid[1, :])
+        table_ax.axis("off")
+        table_ax.set_title(comparison["description"], loc="left", fontsize=11, pad=8)
+        table_ax.text(
+            0.0,
+            1.0,
+            format_comparison_metric_table(comparison["variants"]),
+            va="top",
+            ha="left",
+            fontsize=10,
+            family="monospace",
+        )
+
+        if legend_handles:
+            fig.legend(
+                legend_handles,
+                legend_labels,
+                loc="lower center",
+                bbox_to_anchor=(0.5, 0.01),
+                ncol=max(1, len(legend_labels)),
+                frameon=False,
+            )
+        fig.tight_layout(rect=[0, 0.08, 1, 0.95])
+
+    if show_plots:
+        plt.show()
