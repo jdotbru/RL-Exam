@@ -239,16 +239,6 @@ def get_return_line_deviation(env, position: Optional[np.ndarray] = None) -> flo
     position = env.currPos if position is None else position
     return point_line_distance(position, env.corner2, env.startPos)
 
-
-def get_return_direction_alignment(env, prev_pos: np.ndarray, curr_pos: np.ndarray) -> float:
-    #Misst wie nah die aktuelle Richtung mit der Zielrichtung übereinstimmt
-    if env.corner2 is None:
-        return 0.0
-    move_dir = normalize_vector(curr_pos - prev_pos)
-    target_dir = normalize_vector(env.startPos - env.corner2)
-    return float(np.dot(move_dir, target_dir))
-
-
 def update_best_form_snapshot(env) -> None:
     #Prüft ob ein neues bestes Dreieck gebildet wurde und speichert es wenn ja
     if env.currPhase != 2 or env.corner1 is None or env.corner2 is None:

@@ -7,7 +7,6 @@ from typing import Any, Dict, Tuple, Optional
 import math
 
 from env_helpers import (
-    calculate_turn_angle,
     calculate_new_position,
     calculate_triangle_area,
     cap_late_stage_penalty,
@@ -18,7 +17,6 @@ from env_helpers import (
     get_phase_line_deviation,
     get_phase_progress,
     get_phase_target_direction,
-    get_return_direction_alignment,
     get_return_line_deviation,
     get_segment_points,
     get_triangle_edge_lengths,
@@ -62,7 +60,6 @@ class FingerTriangleEnv(gym.Env):
         self.closureRadiusMax = 1.0
         self.closureRadiusRatio = 0.09
         self.cornerWindow = 3
-        self.directionChangeLimit = 25.0
         self.minArea = 0.1
         self.phase0_soft_limit = 40
         self.phase1_soft_limit = 90
@@ -83,7 +80,6 @@ class FingerTriangleEnv(gym.Env):
         self.reward_partialArea = 12.0
         self.reward_Edge1Len = 0.8
         self.reward_Phase2Closure = 10.0
-        self.reward_Phase2AreaPreservation = 0.0
         self.reward_TriangleShape = 138.0
         self.reward_TriangleStraightness = 110.0
         self.reward_Phase1Corner2Spread = 9.0
@@ -108,7 +104,6 @@ class FingerTriangleEnv(gym.Env):
         self.penalty_Phase2LateDistance = 1.5
         self.phaseProgressScale0 = 0.05
         self.phaseProgressScale1 = 0.8
-        self.phaseProgressScale2 = 10.0
         self.stage2_maxCountedExtraCorners = 2
         self.stage2_curvaturePenaltyCap = 10.0
         self.stage2_awayFromStartPenaltyCap = 10.0
@@ -273,7 +268,6 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 8.0
             self.penalty_SegmentCurvature = 2.5
             self.reward_TriangleStraightness = 70.0
-            self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
             self.reward_Phase1Corner2Spread = 8.0
@@ -293,7 +287,6 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 12.0
             self.penalty_SegmentCurvature = 4.0
             self.reward_TriangleStraightness = 95.0
-            self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
             self.reward_Phase1Corner2Spread = 9.0
@@ -315,7 +308,6 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 15.0
             self.penalty_SegmentCurvature = 5.0
             self.reward_TriangleStraightness = 108.0
-            self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
             self.reward_Phase1Corner2Spread = 5.5
@@ -341,7 +333,6 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_SegmentCurvature = 5.0
             self.reward_TriangleStraightness = 108.0
             self.reward_Phase2Closure = 11.0
-            self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 1.0
             self.reward_Phase1Corner2Spread = 2.5
