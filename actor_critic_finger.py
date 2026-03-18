@@ -299,7 +299,7 @@ def main():
     torch.manual_seed(seed)
 
     #Variablen um Laufdauer zu entscheiden
-    quick_test = os.environ.get("FT_QUICK_TEST", "1") == "1"
+    quick_test = os.environ.get("FT_QUICK_TEST", "0") == "1"
     long_run = os.environ.get("FT_LONG_RUN", "0") == "1"
     fast_tune = os.environ.get("FT_FAST_TUNE", "0") == "1"
     disable_plot = os.environ.get("FT_DISABLE_PLOT", "0") == "1"

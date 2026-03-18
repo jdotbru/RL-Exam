@@ -41,17 +41,18 @@ To make the project executable on another computer, upload the full project fold
 - `Actions.txt` only as supplementary documentation
 
 1. Python 3.10 oder neuer wird benötigt
-2. Terminal im Projektverzeichnis öffnen
-3. Virtuelle Umgebung erstellen:
+2. alle Dateien bis auf "README.md", "requirements.txt" und "Actions.txt" auf die Endung ".py" ändern
+3. Terminal im Projektverzeichnis öffnen
+4. Virtuelle Umgebung erstellen:
    `python -m venv .venv`
-4. Virtuelle Umgebung aktivieren:
+5. Virtuelle Umgebung aktivieren:
    Windows: `.venv\Scripts\activate`
    macOS/Linux: `source .venv/bin/activate`
-5. Dependencies installieren:
+6. Dependencies installieren:
    `pip install -r requirements.txt`
-6. Projekt laufen lassen:
+7. Projekt laufen lassen:
    `python actor_critic_finger.py`
-7. Environment Tests laufen lassen:
+8. Environment Tests laufen lassen:
    `python test_environment.py`
 
 What the script does:
