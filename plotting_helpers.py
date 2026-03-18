@@ -415,7 +415,7 @@ def plot_results(
     ax6.legend()
     fig1.tight_layout(rect=[0, 0, 1, 0.96])
 
-    fig2, axs2 = plt.subplots(1, 4, figsize=(18, 5), num="Triangle Progression")
+    fig2, axs2 = plt.subplots(1, 4, figsize=(18, 5.6), num="Triangle Progression")
     fig2.suptitle("Triangle Progression", fontsize=16)
     progress_handles = []
     progress_labels = []
@@ -429,8 +429,15 @@ def plot_results(
         for ax in axs2:
             ax.axis("off")
     if progress_handles:
-        fig2.legend(progress_handles, progress_labels, loc="lower center", ncol=4)
-    fig2.tight_layout(rect=[0, 0.05, 1, 0.94])
+        fig2.legend(
+            progress_handles,
+            progress_labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=max(1, len(progress_labels)),
+            frameon=False,
+        )
+    fig2.tight_layout(rect=[0, 0.14, 1, 0.94])
 
     fig3, axs3 = plt.subplots(1, 4, figsize=(18, 5), num="Final Policy Showcase")
     fig3.suptitle("Final Policy Showcase", fontsize=16)
