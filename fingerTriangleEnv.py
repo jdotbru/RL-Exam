@@ -94,7 +94,7 @@ class FingerTriangleEnv(gym.Env):
         self.reward_Phase2CleanReturn = 0.0
         self.penalty_limitViolation = 0.05
         self.penalty_noTriangle = 15.0
-        self.penalty_stepNumberMultiplicator = 0.01
+        self.penalty_stepNumberMultiplicator = 0.015
         self.penalty_Multiplier_DirectionChange0 = 0.00
         self.penalty_Multiplier_DirectionChange1 = 0.0008
         self.penalty_Phase1PrematureReturn = 2.0
@@ -102,8 +102,8 @@ class FingerTriangleEnv(gym.Env):
         self.penalty_Phase2EndDistance = 4.0
         self.penalty_ExtraCorner = 16.0
         self.penalty_SegmentCurvature = 5.0
-        self.penalty_phaseStall0 = 0.03
-        self.penalty_phaseStall1 = 0.05
+        self.penalty_phaseStall0 = 0.04
+        self.penalty_phaseStall1 = 0.07
         self.penalty_Phase2ReturnLineDeviation = 6.0
         self.penalty_Phase2LateDistance = 1.5
         self.phaseProgressScale0 = 0.05
@@ -305,7 +305,7 @@ class FingerTriangleEnv(gym.Env):
             #Stage 2: weitere Verschärfung
             self.maxSteps = self.maxStepsStage2
             self.minSteps = 22
-            self.closureRadius = 1.65
+            self.closureRadius = 1.72
             self.minArea = 0.08
             self.maxMeanLineDeviation = 0.40
             self.minStraightnessForSuccess = 0.38
@@ -318,9 +318,9 @@ class FingerTriangleEnv(gym.Env):
             self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
-            self.reward_Phase1Corner2Spread = 11.0
-            self.reward_Phase1Corner1Separation = 3.0
-            self.penalty_Phase1PrematureReturn = 2.4
+            self.reward_Phase1Corner2Spread = 7.5
+            self.reward_Phase1Corner1Separation = 2.0
+            self.penalty_Phase1PrematureReturn = 1.5
             self.penalty_Phase2AwayFromStart = 8.0
             self.penalty_Phase2ReturnLineDeviation = 6.0
             self.penalty_Phase2LateDistance = 1.5
@@ -340,16 +340,16 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 15.0
             self.penalty_SegmentCurvature = 5.0
             self.reward_TriangleStraightness = 108.0
-            self.reward_Phase2Closure = 11.0
+            self.reward_Phase2Closure = 11.3
             self.reward_Phase2AreaPreservation = 0.0
-            self.reward_Phase2DirectionAlignment = 2.0
-            self.reward_Phase2CleanReturn = 0.0
-            self.reward_Phase1Corner2Spread = 6.0
-            self.reward_Phase1Corner1Separation = 1.5
-            self.penalty_Phase1PrematureReturn = 1.0
+            self.reward_Phase2DirectionAlignment = 2.4
+            self.reward_Phase2CleanReturn = 1.4
+            self.reward_Phase1Corner2Spread = 4.5
+            self.reward_Phase1Corner1Separation = 1.0
+            self.penalty_Phase1PrematureReturn = 0.6
             self.penalty_Phase2AwayFromStart = 8.0
-            self.penalty_Phase2ReturnLineDeviation = 6.0
-            self.penalty_Phase2LateDistance = 1.5
+            self.penalty_Phase2ReturnLineDeviation = 5.8
+            self.penalty_Phase2LateDistance = 1.2
             self.partialAreaScale = 1.0
             self.terminalGapScale = 1.0
     
@@ -592,7 +592,6 @@ class FingerTriangleEnv(gym.Env):
                 late_progress = max(0.0, (self.step_ctr - self.minSteps) / late_phase_window)
                 late_distance_penalty = self.penalty_Phase2LateDistance * late_progress * currDistanceToStart
                 shaping_reward -= cap_late_stage_penalty(self, late_distance_penalty, self.stage2_lateDistancePenaltyCap, self.stage3_lateDistancePenaltyCap)
-
 
                 #Abweichungsänderung von Phasenlinie
                 prev_return_deviation = get_return_line_deviation(self, prevPos)

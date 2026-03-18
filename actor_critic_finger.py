@@ -314,8 +314,8 @@ def main():
     gae_lambda = 0.95
     learning_rate = 3e-4
     critic_weight = 0.5
-    entropy_weight_start = 0.002
-    entropy_weight_end = 0.0001
+    entropy_weight_start = 0.0012
+    entropy_weight_end = 0.00005
     update_batch_episodes = 8
     ppo_epochs = 4
     ppo_minibatch_size = 256
@@ -462,14 +462,14 @@ def main():
         if stage == 3:
             if ep < stage3_bridge_end:
                 current_lr = learning_rate * 0.70
-                entropy_weight *= 0.85
+                entropy_weight *= 0.70
             elif ep >= stage3_final_start:
                 current_lr = learning_rate * 0.18
-                entropy_weight *= 0.25
+                entropy_weight *= 0.15
                 current_ppo_epochs = 1
             elif ep >= stage3_refinement_start:
                 current_lr = learning_rate * 0.35
-                entropy_weight *= 0.50
+                entropy_weight *= 0.35
                 current_ppo_epochs = max(2, ppo_epochs - 2)
 
         #Aktualisieren der Learning Rate
