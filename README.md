@@ -11,10 +11,10 @@ Evaluation criteria – Coding assignment:
 1. Clear summary of the problem and solution approach
 2. Demonstration of environment behaviour with example rollouts
 3. Reward function definition and justification
-4. Definition of test scenarios prior to training - TO-DO
+4. Definition of test scenarios prior to training
 5. Code documentation and structure
 6. Demonstration of good policy performance
-7. Quantitative figures of merit and hyperparameter studies - TO-DO
+7. Quantitative figures of merit and hyperparameter studies
 8. Ability to modify code live and explain performance changes
 
 Important:
@@ -26,7 +26,8 @@ Deliverables:
 • Presentation slides (coding task + assigned scientific paper)
 • All materials must be uploaded before the examination.
 
-Setup And Run
+
+Setup And Run:
 
 To make the project executable on another computer, upload the full project folder with at least these files:
 - `actor_critic_finger.py`
@@ -36,26 +37,22 @@ To make the project executable on another computer, upload the full project fold
 - `plotting_helpers.py`
 - `requirements.txt`
 - `README.md`
-
-Optional files:
-- `best_triangle_checkpoint.pt` only if you want to provide a pretrained checkpoint
-- `final_eval_summary.txt` only if you want to include the last recorded results
+- `test_environment.py`
 - `Actions.txt` only as supplementary documentation
 
-Recommended steps for the other person:
-
-1. Install Python 3.10 or newer.
-2. Download or clone the project folder.
-3. Open a terminal in the project directory.
-4. Create a virtual environment:
+1. Python 3.10 oder neuer wird benötigt
+2. Terminal im Projektverzeichnis öffnen
+3. Virtuelle Umgebung erstellen:
    `python -m venv .venv`
-5. Activate it:
+4. Virtuelle Umgebung aktivieren:
    Windows: `.venv\Scripts\activate`
    macOS/Linux: `source .venv/bin/activate`
-6. Install dependencies:
+5. Dependencies installieren:
    `pip install -r requirements.txt`
-7. Run the project:
+6. Projekt laufen lassen:
    `python actor_critic_finger.py`
+7. Environment Tests laufen lassen:
+   `python test_environment.py`
 
 What the script does:
 - Starts training of the actor-critic agent
@@ -64,8 +61,7 @@ What the script does:
 - Optionally writes `best_triangle_checkpoint.pt`
 - Opens matplotlib plots at the end
 
-Notes for portability:
-- Keep all Python files in the same folder, because they import each other via local file names.
-- If plots do not open in the IDE, run the script from a normal terminal or configure a matplotlib backend supported on that system.
-- On a machine without a GPU, PyTorch will still run on CPU, but training may take longer.
-- If only a quick demonstration is needed, reduce the number of episodes in `actor_critic_finger.py`.
+Notizen:
+- Alle Python Dateien müssen im gleichen Ordner sein, da sie sich gegenseitig importieren
+- Falls die Plots nicht geöffnet werden, eventuell in einem externen Terminal ausführen
+- Sollte nur eine kurze Demonstration gewünscht sein, kann die Episodenanzahl in`actor_critic_finger.py` niedriger gestellt werden
