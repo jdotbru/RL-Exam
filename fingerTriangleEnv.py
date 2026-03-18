@@ -87,6 +87,7 @@ class FingerTriangleEnv(gym.Env):
         self.reward_TriangleShape = 138.0
         self.reward_TriangleStraightness = 110.0
         self.reward_Phase1Corner2Spread = 9.0
+        self.reward_Phase1Corner1Separation = 2.5
         self.reward_TriangleMeanEdge = 20.0
         self.reward_TriangleEdgeBalance = 28.0
         self.reward_Phase2DirectionAlignment = 2.0
@@ -96,6 +97,7 @@ class FingerTriangleEnv(gym.Env):
         self.penalty_stepNumberMultiplicator = 0.01
         self.penalty_Multiplier_DirectionChange0 = 0.00
         self.penalty_Multiplier_DirectionChange1 = 0.0008
+        self.penalty_Phase1PrematureReturn = 2.0
         self.penalty_Phase2AwayFromStart = 8.0
         self.penalty_Phase2EndDistance = 4.0
         self.penalty_ExtraCorner = 16.0
@@ -274,6 +276,9 @@ class FingerTriangleEnv(gym.Env):
             self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
+            self.reward_Phase1Corner2Spread = 8.0
+            self.reward_Phase1Corner1Separation = 2.0
+            self.penalty_Phase1PrematureReturn = 1.5
         elif self.curriculum_stage == 1:
             #Stage 1: Verschärfung von Parametern
             self.maxSteps = self.maxStepsStage1
@@ -291,6 +296,9 @@ class FingerTriangleEnv(gym.Env):
             self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
+            self.reward_Phase1Corner2Spread = 9.0
+            self.reward_Phase1Corner1Separation = 2.5
+            self.penalty_Phase1PrematureReturn = 2.0
             self.partialAreaScale = 1.0
             self.terminalGapScale = 1.0
         elif self.curriculum_stage == 2:
@@ -310,34 +318,40 @@ class FingerTriangleEnv(gym.Env):
             self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
+            self.reward_Phase1Corner2Spread = 11.0
+            self.reward_Phase1Corner1Separation = 3.0
+            self.penalty_Phase1PrematureReturn = 2.4
             self.penalty_Phase2AwayFromStart = 8.0
             self.penalty_Phase2ReturnLineDeviation = 6.0
             self.penalty_Phase2LateDistance = 1.5
             self.partialAreaScale = 1.0
             self.terminalGapScale = 1.0
         else:
-            #Stage 3: endgültige Parameter für Dreiecks-Definition
+            #Stage 3: nahezu identisch zu Stage 2, nur als kurze Abschlussphase
             self.maxSteps = self.maxStepsStage3
-            self.minSteps = 23
-            self.closureRadius = 1.63
+            self.minSteps = 22
+            self.closureRadius = 1.65
             self.minArea = 0.08
             self.maxMeanLineDeviation = 0.40
-            self.minStraightnessForSuccess = 0.40
+            self.minStraightnessForSuccess = 0.38
             self.maxExtraCornersForSuccess = 1
-            self.minMeanEdgeLengthForGoodTriangle = 0.97
-            self.minEdgeBalanceForGoodTriangle = 0.41
-            self.penalty_ExtraCorner = 15.5
+            self.minMeanEdgeLengthForGoodTriangle = 0.95
+            self.minEdgeBalanceForGoodTriangle = 0.40
+            self.penalty_ExtraCorner = 15.0
             self.penalty_SegmentCurvature = 5.0
-            self.reward_TriangleStraightness = 110.0
+            self.reward_TriangleStraightness = 108.0
             self.reward_Phase2Closure = 11.0
             self.reward_Phase2AreaPreservation = 0.0
-            self.reward_Phase2DirectionAlignment = 2.2
-            self.reward_Phase2CleanReturn = 3.0
-            self.penalty_Phase2AwayFromStart = 7.0
-            self.penalty_Phase2ReturnLineDeviation = 5.0
-            self.penalty_Phase2LateDistance = 1.2
-            self.partialAreaScale = 0.35
-            self.terminalGapScale = 1.20
+            self.reward_Phase2DirectionAlignment = 2.0
+            self.reward_Phase2CleanReturn = 0.0
+            self.reward_Phase1Corner2Spread = 6.0
+            self.reward_Phase1Corner1Separation = 1.5
+            self.penalty_Phase1PrematureReturn = 1.0
+            self.penalty_Phase2AwayFromStart = 8.0
+            self.penalty_Phase2ReturnLineDeviation = 6.0
+            self.penalty_Phase2LateDistance = 1.5
+            self.partialAreaScale = 1.0
+            self.terminalGapScale = 1.0
     
     def updateAngles(self, action, antagonist): 
         #aktualisiert die Gelenkwinkel auf Basis der übergebenen Aktion
@@ -523,6 +537,7 @@ class FingerTriangleEnv(gym.Env):
                 prevDistanceToCorner1 = np.linalg.norm(prevPos - self.corner1)
                 currDistanceToCorner1 = np.linalg.norm(self.currPos - self.corner1)
                 shaping_reward += self.phaseProgressScale1 * (currDistanceToCorner1 - prevDistanceToCorner1)
+                shaping_reward += self.reward_Phase1Corner1Separation * (currDistanceToCorner1 - prevDistanceToCorner1)
                 
                 #Flächenerhöhung
                 prev_area = calculate_triangle_area(self.startPos, self.corner1, prevPos)
@@ -539,6 +554,11 @@ class FingerTriangleEnv(gym.Env):
                     np.linalg.norm(self.currPos - self.corner1),
                 )
                 shaping_reward += self.reward_Phase1Corner2Spread * (curr_spread - prev_spread)
+
+                prevDistanceToStart = np.linalg.norm(prevPos - self.startPos)
+                currDistanceToStart = np.linalg.norm(self.currPos - self.startPos)
+                if currDistanceToStart < prevDistanceToStart:
+                    shaping_reward -= self.penalty_Phase1PrematureReturn * (prevDistanceToStart - currDistanceToStart)
                 
                 #Überziehen der Phase
                 if self.step_ctr > self.phase1_soft_limit:

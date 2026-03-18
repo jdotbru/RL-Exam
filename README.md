@@ -26,35 +26,46 @@ Deliverables:
 • Presentation slides (coding task + assigned scientific paper)
 • All materials must be uploaded before the examination.
 
-Funktionalität der Umgebung:
-    - Finger mit drei Gelenken
-        -> Verbindungsstücke haben Länge 5 cm, 2.5 cm und 2.5 cm
-        -> Gelenke haben alle eine mögliche Range von +/- 90 Grad
-    - durch Bewegung des Fingers soll ein Dreieck identifiziert werden
-    - Die Fläche wird berechnet
-        -> Brute-Force Bildung aller möglichen Dreiecke
-    - die Fläche beeinflusst dann die reward function
-    - Abgrebrochen wird eine Sequenz bei annäherung des Fingers auf eine Einheit zum Startpunkt nach einer Mindestanzahl an Schritten oder bei Überschreitung der maximalen Schrittanzahl
-    - ein optionaler Antagonist fügt Störungen in die Bewegung des Fingers ein
-    - Antagonist wirkt als Störung (Simulation realistischer Umstände) im Rahmen von bounded Störungen (nur begrenzt)
-Reward-Funktion:
-    - 3 Phasen
-        -> 1. Phase: Weg vom Start und klare Ecke erkennbar
-        -> 2. Phase: Weg von Ecke und klare Ecke erkennbar
-        -> 3. Phase: Zurück zum Start
-    - wichtiger Faktor: Fläche des identifizierten Dreiecks
-        -> bei keinem Dreieck: Reward = 0
-    - Reward bei Abschließen in der Nähe des Anfangspunktes
-    - Penalty bei:
-        -> überdrehen eines Gelenks
-        -> keinem identifizierten Dreieck
-        -> optional/zukünftig: zu starker Abweichung von gerader Linie
+Setup And Run
 
-Verbesserungen, die das Training deutlich effektiver gemacht haben/Erkenntnisse:
-    Environment:
+To make the project executable on another computer, upload the full project folder with at least these files:
+- `actor_critic_finger.py`
+- `fingerTriangleEnv.py`
+- `agent_helpers.py`
+- `env_helpers.py`
+- `plotting_helpers.py`
+- `requirements.txt`
+- `README.md`
 
-    Agent:
+Optional files:
+- `best_triangle_checkpoint.pt` only if you want to provide a pretrained checkpoint
+- `final_eval_summary.txt` only if you want to include the last recorded results
+- `Actions.txt` only as supplementary documentation
 
-Probleme/Herausforderungen:
-    - Agenten früh dazu kriegen, die rewards zu erkennen (Ecken bilden und Dreieck zuende bringen)
-    - Rewardfunction so gewichten, dass das richtige gelernt wird
+Recommended steps for the other person:
+
+1. Install Python 3.10 or newer.
+2. Download or clone the project folder.
+3. Open a terminal in the project directory.
+4. Create a virtual environment:
+   `python -m venv .venv`
+5. Activate it:
+   Windows: `.venv\Scripts\activate`
+   macOS/Linux: `source .venv/bin/activate`
+6. Install dependencies:
+   `pip install -r requirements.txt`
+7. Run the project:
+   `python actor_critic_finger.py`
+
+What the script does:
+- Starts training of the actor-critic agent
+- Runs evaluations during and after training
+- Writes a summary file `final_eval_summary.txt`
+- Optionally writes `best_triangle_checkpoint.pt`
+- Opens matplotlib plots at the end
+
+Notes for portability:
+- Keep all Python files in the same folder, because they import each other via local file names.
+- If plots do not open in the IDE, run the script from a normal terminal or configure a matplotlib backend supported on that system.
+- On a machine without a GPU, PyTorch will still run on CPU, but training may take longer.
+- If only a quick demonstration is needed, reduce the number of episodes in `actor_critic_finger.py`.

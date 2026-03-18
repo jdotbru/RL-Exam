@@ -176,24 +176,47 @@ def run_episode(env: FingerTriangleEnv,model: ActorCriticNet,gamma: float,gae_la
     return result, observations_t, actions_t, log_probs_t, values_t, advantages_t, value_targets_t, entropies_t
 
 
-def evaluate_deterministic_policy(env: FingerTriangleEnv, model: ActorCriticNet, gamma: float, gae_lambda: float, episodes: int = 20) -> dict[str, float]:
-    #Bewertet den Outcome wenn deterministisch immer die wahrscheinlichste Aktion genommen wird
+def evaluate_deterministic_policy(
+    env: FingerTriangleEnv,
+    model: ActorCriticNet,
+    gamma: float,
+    gae_lambda: float,
+    episodes: int = 20,
+    deterministic: bool = True,
+    sampling_temperature: float = 1.0,
+    antagonist_prob: float = 0.0,
+) -> dict[str, float]:
+    #Bewertet den Outcome der Policy, standardmäßig deterministisch.
     rewards = []
     areas = []
     successes = []
+    distances_to_start = []
+    straightness_values = []
 
     with torch.no_grad():
         for _ in range(episodes):
             #Durchführung von Episoden mit deterministischer Policy
-            result, _, _, _, _, _, _, _ = run_episode(env=env, model=model, gamma=gamma, gae_lambda=gae_lambda, antagonist_prob=0.0, deterministic=True)
+            result, _, _, _, _, _, _, _ = run_episode(
+                env=env,
+                model=model,
+                gamma=gamma,
+                gae_lambda=gae_lambda,
+                antagonist_prob=antagonist_prob,
+                deterministic=deterministic,
+                sampling_temperature=sampling_temperature,
+            )
             rewards.append(result.reward)
             areas.append(result.area)
             successes.append(int(result.success))
+            distances_to_start.append(result.distance_to_start)
+            straightness_values.append(result.triangle_straightness)
 
     return {
         "mean_reward": float(np.mean(rewards)),
         "mean_area": float(np.mean(areas)),
         "success_rate": float(np.mean(successes) * 100.0),
+        "mean_distance_to_start": float(np.mean(distances_to_start)),
+        "mean_straightness": float(np.mean(straightness_values)),
     }
 
 
@@ -297,7 +320,7 @@ def main():
     ppo_epochs = 4
     ppo_minibatch_size = 256
     ppo_clip_epsilon = 0.2
-    antagonist_prob = 0.1
+    antagonist_prob = 0.08
     use_antagonist = True
     final_eval_temperatures = [0.75]
     final_eval_episodes_per_temperature = 80 if quick_test else 360
@@ -340,6 +363,8 @@ def main():
     benchmark_reward_history: list[float] = []
     benchmark_success_history: list[float] = []
     benchmark_area_history: list[float] = []
+    benchmark_distance_history: list[float] = []
+    benchmark_straightness_history: list[float] = []
     benchmark_stage_history: list[int] = []
     best_checkpoint_state: dict[str, torch.Tensor] | None = None
     best_checkpoint_score = (-1.0, -1.0, -1.0, -1.0)
@@ -347,15 +372,31 @@ def main():
 
     #Stage-definition für verschiedene Run-Optionen
     if quick_test:
-        stage_endpoints = (320, 680, 980, episodes)
+        stage_endpoints = (320, 720, 1080, episodes)
     elif long_run:
-        stage_endpoints = (1600, 3600, 5200, episodes)
+        stage_endpoints = (1600, 3800, 5600, episodes)
     else:
-        stage_endpoints = (800, 1800, 2600, episodes)
+        stage_endpoints = (800, 1900, 2800, episodes)
        
     #Einteilung von stage3 in zwei Phasen 
-    stage3_refinement_start = stage_endpoints[2] + int(0.60 * (episodes - stage_endpoints[2]))
-    stage3_final_start = stage_endpoints[2] + int(0.82 * (episodes - stage_endpoints[2]))
+    stage3_refinement_start = stage_endpoints[2] + int(0.45 * (episodes - stage_endpoints[2]))
+    stage3_final_start = stage_endpoints[2] + int(0.70 * (episodes - stage_endpoints[2]))
+    stage3_bridge_end = stage_endpoints[2] + int(0.32 * (episodes - stage_endpoints[2]))
+
+    def apply_stage3_bridge(curr_env: FingerTriangleEnv) -> None:
+        # Zu Beginn von Stage 3 wird die Verschärfung etwas abgefedert,
+        # damit gute Stage-2-Politiken nicht sofort einbrechen.
+        curr_env.closureRadius = 1.65
+        curr_env.minStraightnessForSuccess = 0.38
+        curr_env.minMeanEdgeLengthForGoodTriangle = 0.95
+        curr_env.minEdgeBalanceForGoodTriangle = 0.40
+        curr_env.reward_Phase2DirectionAlignment = 2.0
+        curr_env.reward_Phase2CleanReturn = 1.0
+        curr_env.penalty_Phase2AwayFromStart = 7.5
+        curr_env.penalty_Phase2ReturnLineDeviation = 5.0
+        curr_env.penalty_Phase2LateDistance = 1.2
+        curr_env.partialAreaScale = 0.40
+        curr_env.terminalGapScale = 1.00
 
     def curriculum_stage_for_episode(episode: int) -> int:
         #Gibt Lernstage für übergebene Episode zurück
@@ -391,6 +432,9 @@ def main():
         stage = curriculum_stage_for_episode(ep)
         env.set_curriculum_stage(stage)
         eval_env.set_curriculum_stage(stage)
+        if stage == 3 and ep < stage3_bridge_end:
+            apply_stage3_bridge(env)
+            apply_stage3_bridge(eval_env)
 
         #Durchführung der Episode
         result, observations, actions, old_log_probs, values, advantages, value_targets, entropies = run_episode(env, model, gamma, gae_lambda, antagonist_prob)
@@ -414,13 +458,19 @@ def main():
         current_lr = learning_rate
         
         #Learning rate am Ende runtersetzen um nur Feinjustierungen durchzuführen ohne die Policy instabil zu machen
+        current_ppo_epochs = ppo_epochs
         if stage == 3:
-            if ep >= stage3_final_start:
-                current_lr = learning_rate * 0.45
-                entropy_weight *= 0.55
-            elif ep >= stage3_refinement_start:
+            if ep < stage3_bridge_end:
                 current_lr = learning_rate * 0.70
-                entropy_weight *= 0.80
+                entropy_weight *= 0.85
+            elif ep >= stage3_final_start:
+                current_lr = learning_rate * 0.18
+                entropy_weight *= 0.25
+                current_ppo_epochs = 1
+            elif ep >= stage3_refinement_start:
+                current_lr = learning_rate * 0.35
+                entropy_weight *= 0.50
+                current_ppo_epochs = max(2, ppo_epochs - 2)
 
         #Aktualisieren der Learning Rate
         for group in optimizer.param_groups:
@@ -448,7 +498,7 @@ def main():
             minibatch_size = min(ppo_minibatch_size, num_samples)
 
             #Optimierung des PPo-Netzes
-            for _ in range(ppo_epochs):
+            for _ in range(current_ppo_epochs):
                 permutation = torch.randperm(num_samples)
                 #Aufteilen der Batches in kleine Sammlungen
                 for start_idx in range(0, num_samples, minibatch_size):
@@ -528,14 +578,32 @@ def main():
             mean_shaping_reward = float(np.mean(shaping_reward_history[-50:]))
             mean_terminal_reward = float(np.mean(terminal_reward_history[-50:]))
             mean_terminal_area_bonus = float(np.mean(terminal_area_bonus_history[-50:]))
-            eval_stats = evaluate_deterministic_policy(env=eval_env, model=model, gamma=gamma, gae_lambda=gae_lambda, episodes=periodic_eval_episodes)
-            stage3_benchmark_stats = evaluate_deterministic_policy(env=benchmark_env, model=model, gamma=gamma, gae_lambda=gae_lambda, episodes=periodic_eval_episodes)
+            eval_stats = evaluate_deterministic_policy(
+                env=eval_env,
+                model=model,
+                gamma=gamma,
+                gae_lambda=gae_lambda,
+                episodes=periodic_eval_episodes,
+                deterministic=True,
+            )
+            stage3_benchmark_stats = evaluate_deterministic_policy(
+                env=benchmark_env,
+                model=model,
+                gamma=gamma,
+                gae_lambda=gae_lambda,
+                episodes=max(periodic_eval_episodes, 24),
+                deterministic=False,
+                sampling_temperature=0.75,
+                antagonist_prob=0.0,
+            )
             
             #Benchmark-Werte in Speicher anhängen
             benchmark_episode_points.append(ep)
             benchmark_reward_history.append(stage3_benchmark_stats["mean_reward"])
             benchmark_success_history.append(stage3_benchmark_stats["success_rate"])
             benchmark_area_history.append(stage3_benchmark_stats["mean_area"])
+            benchmark_distance_history.append(stage3_benchmark_stats["mean_distance_to_start"])
+            benchmark_straightness_history.append(stage3_benchmark_stats["mean_straightness"])
             benchmark_stage_history.append(stage)
             print(
                 f"Episode {ep:>3d} | "
@@ -556,7 +624,10 @@ def main():
                 f"success={success_rate:>5.1f}%, c1={corner1_rate:>5.1f}%, c2={corner2_rate:>5.1f}%, "
                 f"phase2={phase2_rate:>5.1f}%, evalSuccess={eval_stats['success_rate']:>5.1f}%, "
                 f"evalArea={eval_stats['mean_area']:>6.3f}, stage3BenchSucc={stage3_benchmark_stats['success_rate']:>5.1f}%, "
-                f"stage3BenchR={stage3_benchmark_stats['mean_reward']:>7.1f}, meanActorLoss={avg_actor_loss:>8.3f}, meanCriticLoss={avg_critic_loss:>8.3f}"
+                f"stage3BenchR={stage3_benchmark_stats['mean_reward']:>7.1f}, "
+                f"stage3BenchD={stage3_benchmark_stats['mean_distance_to_start']:>5.2f}, "
+                f"stage3BenchStr={stage3_benchmark_stats['mean_straightness']:>4.2f}, "
+                f"meanActorLoss={avg_actor_loss:>8.3f}, meanCriticLoss={avg_critic_loss:>8.3f}"
                 f", straight={mean_straightness:>4.2f}, extraCorners={mean_extra_corners:>4.2f}"
                 f", shapeR={mean_shaping_reward:>7.2f}, termR={mean_terminal_reward:>7.2f}, areaB={mean_terminal_area_bonus:>7.2f}"
             )
@@ -680,6 +751,8 @@ def main():
             benchmark_reward_history=benchmark_reward_history,
             benchmark_success_history=benchmark_success_history,
             benchmark_area_history=benchmark_area_history,
+            benchmark_distance_history=benchmark_distance_history,
+            benchmark_straightness_history=benchmark_straightness_history,
             benchmark_stage_history=benchmark_stage_history,
             showcases=build_sampler_showcases(final_eval_results),
             progress_showcases=build_progress_showcases(training_results),

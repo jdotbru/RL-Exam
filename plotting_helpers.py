@@ -33,6 +33,20 @@ def episode_quality_score(result: EpisodeResult) -> float:
     return float(score)
 
 
+def presentation_quality_score(result: EpisodeResult) -> float:
+    score = (
+        120.0 * result.triangle_straightness
+        - 45.0 * result.distance_to_start
+        - 18.0 * result.extra_corners
+        + 55.0 * result.area
+    )
+    if result.success:
+        score += 180.0
+    if result.good_triangle:
+        score += 90.0
+    return float(score)
+
+
 def visually_closed(result: EpisodeResult) -> bool:
     return bool(result.success and result.distance_to_start <= 0.60)
 
@@ -131,14 +145,19 @@ def build_progress_showcases(results: list[EpisodeResult]) -> list[tuple[str, Ep
     if not results:
         return []
     selected: list[tuple[str, EpisodeResult]] = []
-    stage_labels = {0: "Beste Form Stage 0", 1: "Beste Form Stage 1", 2: "Beste Form Stage 2", 3: "Beste Form Stage 3"}
+    stage_labels = {
+        0: "Bester Stage-0 Verlauf",
+        1: "Bester Stage-1 Verlauf",
+        2: "Bester Stage-2 Verlauf",
+        3: "Beste Final-Policy",
+    }
     for stage in [0, 1, 2, 3]:
         stage_results = [result for result in results if result.curriculum_stage == stage]
         if not stage_results:
             continue
         stage_successes = [result for result in stage_results if result.success]
         source = stage_successes if stage_successes else stage_results
-        candidate = best_form_variant(max(source, key=best_form_quality_score))
+        candidate = best_form_variant(max(source, key=presentation_quality_score))
         selected.append((stage_labels[stage], candidate))
     return build_showcase_episodes(selected, limit=4)
 
@@ -164,6 +183,8 @@ def summarize_training_metrics(
     benchmark_reward_history: list[float],
     benchmark_success_history: list[float],
     benchmark_area_history: list[float],
+    benchmark_distance_history: list[float],
+    benchmark_straightness_history: list[float],
 ) -> list[str]:
     if not reward_history:
         return ["Keine Trainingsdaten vorhanden."]
@@ -199,6 +220,8 @@ def summarize_training_metrics(
             f"Stage-3 Benchmark R: {benchmark_reward_history[-1]:.1f}",
             f"Stage-3 Benchmark S: {benchmark_success_history[-1]:.1f}%",
             f"Stage-3 Benchmark A: {benchmark_area_history[-1]:.3f}",
+            f"Stage-3 Benchmark dStart: {benchmark_distance_history[-1]:.3f}",
+            f"Stage-3 Benchmark Straight: {benchmark_straightness_history[-1]:.3f}",
         ])
 
     return [
@@ -295,6 +318,8 @@ def plot_results(
     benchmark_reward_history,
     benchmark_success_history,
     benchmark_area_history,
+    benchmark_distance_history,
+    benchmark_straightness_history,
     benchmark_stage_history,
     showcases,
     progress_showcases,
@@ -303,19 +328,13 @@ def plot_results(
     success_ma = moving_average(success_history, 25) * 100.0
     successful_area_ma = moving_success_average(successful_area_history, success_history, 25)
     straightness_ma = moving_average(straightness_history, 25)
-    extra_corner_ma = moving_average(extra_corner_history, 25)
-    actor_loss_ma = moving_average(actor_loss_history, 25)
-    critic_loss_ma = moving_average(critic_loss_history, 25)
-    shaping_reward_ma = moving_average(shaping_reward_history, 25)
-    terminal_reward_ma = moving_average(terminal_reward_history, 25)
     closure_gap_ma = moving_average(distance_history, 25)
-    stage_reward_curves = stagewise_metric_curves(reward_history, stage_history, 25)
     stage_success_curves = stagewise_metric_curves(success_history, stage_history, 25, multiplier=100.0)
-    stage_area_curves = stagewise_metric_curves(area_history, stage_history, 25)
     benchmark_success_curves = stagewise_benchmark_curves(benchmark_episode_points, benchmark_success_history, benchmark_stage_history, window=3, multiplier=1.0)
-    benchmark_reward_ma = moving_average(benchmark_reward_history, 3) if benchmark_reward_history else np.array([])
     benchmark_area_ma = moving_average(benchmark_area_history, 3) if benchmark_area_history else np.array([])
-    recent_showcases = build_recent_triangle_showcases(training_results, limit=3)
+    benchmark_success_ma = moving_average(benchmark_success_history, 3) if benchmark_success_history else np.array([])
+    benchmark_distance_ma = moving_average(benchmark_distance_history, 3) if benchmark_distance_history else np.array([])
+    benchmark_straightness_ma = moving_average(benchmark_straightness_history, 3) if benchmark_straightness_history else np.array([])
     summary_lines = summarize_training_metrics(
         reward_history=reward_history,
         area_history=area_history,
@@ -327,199 +346,126 @@ def plot_results(
         benchmark_reward_history=benchmark_reward_history,
         benchmark_success_history=benchmark_success_history,
         benchmark_area_history=benchmark_area_history,
+        benchmark_distance_history=benchmark_distance_history,
+        benchmark_straightness_history=benchmark_straightness_history,
     )
 
-    fig1, axs1 = plt.subplots(2, 2, figsize=(15, 9), num="Training Trends")
-    fig1.suptitle("Training Trends", fontsize=16)
+    fig1, axs1 = plt.subplots(2, 3, figsize=(17, 9), num="Learning Curves")
+    fig1.suptitle("Learning Curves", fontsize=16)
 
     ax1 = axs1[0, 0]
-    ax1.plot(reward_history, alpha=0.25, label="Reward pro Episode")
-    ax1.plot(reward_ma, linewidth=2.5, label="Moving Average (25)")
+    if benchmark_episode_points:
+        ax1.plot(benchmark_episode_points, benchmark_success_history, alpha=0.20, color="tab:purple")
+        ax1.plot(benchmark_episode_points, benchmark_success_ma, linewidth=2.5, color="tab:purple")
     add_stage_background(ax1, stage_history)
-    ax1.set_title("Reward über die Zeit")
+    ax1.set_title("Stage-3-Benchmark-Success")
     ax1.set_xlabel("Episode")
-    ax1.set_ylabel("Reward")
+    ax1.set_ylabel("Erfolgsquote in %")
+    ax1.set_ylim(0, 100)
     ax1.grid(True, alpha=0.3)
-    ax1.legend()
 
     ax2 = axs1[0, 1]
-    stage_colors = {0: "tab:green", 1: "tab:blue", 2: "tab:orange", 3: "tab:red"}
-    for stage, (x_vals, y_vals) in stage_reward_curves.items():
-        ax2.plot(x_vals, y_vals, linewidth=2.2, color=stage_colors.get(stage, None), label=f"Stage {stage}")
-    ax2.set_title("Reward je Stage (MA 25)")
-    ax2.set_xlabel("Episode innerhalb der Stage")
-    ax2.set_ylabel("Reward")
+    ax2.plot(successful_area_ma, linewidth=2.5, color="tab:orange")
+    ax2.plot(area_history, alpha=0.08, color="tab:orange")
+    add_stage_background(ax2, stage_history)
+    ax2.set_title("Mittlere Erfolgsflaeche lokal")
+    ax2.set_xlabel("Episode")
+    ax2.set_ylabel("Area bei Erfolgen")
     ax2.grid(True, alpha=0.3)
-    ax2.legend()
 
     ax3 = axs1[1, 0]
-    ax3.plot(success_ma, linewidth=2.5)
+    if benchmark_episode_points:
+        ax3.plot(benchmark_episode_points, benchmark_distance_history, alpha=0.20, color="tab:red")
+        ax3.plot(benchmark_episode_points, benchmark_distance_ma, linewidth=2.5, color="tab:red")
     add_stage_background(ax3, stage_history)
-    ax3.set_title("Success-Rate lokal (aktueller Stage-Standard, MA 25)")
+    ax3.set_title("Stage-3-Benchmark dStart")
     ax3.set_xlabel("Episode")
-    ax3.set_ylabel("Erfolgsquote in %")
-    ax3.set_ylim(0, 100)
+    ax3.set_ylabel("dStart")
     ax3.grid(True, alpha=0.3)
 
     ax4 = axs1[1, 1]
-    ax4.plot(closure_gap_ma, linewidth=2.5, color="tab:red", label="dStart MA")
+    if benchmark_episode_points:
+        ax4.plot(benchmark_episode_points, benchmark_straightness_history, alpha=0.20, color="tab:blue")
+        ax4.plot(benchmark_episode_points, benchmark_straightness_ma, linewidth=2.5, color="tab:blue")
     add_stage_background(ax4, stage_history)
-    ax4.set_title("Abschlussluecke zum Start (MA 25)")
+    ax4.set_title("Stage-3-Benchmark Straightness")
     ax4.set_xlabel("Episode")
-    ax4.set_ylabel("dStart")
+    ax4.set_ylabel("Straightness")
     ax4.grid(True, alpha=0.3)
-    ax4.legend()
-    fig1.tight_layout(rect=[0, 0, 1, 0.96])
 
-    fig2, axs2 = plt.subplots(2, 2, figsize=(15, 9), num="Benchmark And Quality")
-    fig2.suptitle("Benchmark And Quality", fontsize=16)
-
-    ax5 = axs2[0, 0]
-    ax5.plot(successful_area_ma, linewidth=2.5, color="tab:orange", label="Erfolgsflaeche MA")
-    ax5.plot(area_history, alpha=0.08, color="tab:orange")
+    ax5 = axs1[0, 2]
+    if benchmark_episode_points:
+        ax5.plot(benchmark_episode_points, benchmark_success_history, alpha=0.20, color="tab:purple")
+        ax5.plot(benchmark_episode_points, benchmark_success_ma, linewidth=2.5, color="tab:purple")
     add_stage_background(ax5, stage_history)
-    ax5.set_title("Mittlere Erfolgsflaeche lokal")
+    ax5.set_title("Stage-3-Benchmark-Success")
     ax5.set_xlabel("Episode")
-    ax5.set_ylabel("Area bei Erfolgen")
+    ax5.set_ylabel("Erfolgsquote in %")
+    ax5.set_ylim(0, 100)
     ax5.grid(True, alpha=0.3)
-    ax5.legend()
 
-    ax6 = axs2[0, 1]
+    ax6 = axs1[1, 2]
     for stage, (x_vals, y_vals) in stage_success_curves.items():
-        ax6.plot(x_vals, y_vals, linewidth=2.2, color=stage_colors.get(stage, None), label=f"Stage {stage}")
+        color = {0: "tab:green", 1: "tab:blue", 2: "tab:orange", 3: "tab:red"}.get(stage, None)
+        ax6.plot(x_vals, y_vals, linewidth=2.2, color=color, label=f"Stage {stage}")
     ax6.set_title("Success je Stage lokal (MA 25)")
     ax6.set_xlabel("Episode innerhalb der Stage")
     ax6.set_ylabel("Erfolgsquote in %")
     ax6.set_ylim(0, 100)
     ax6.grid(True, alpha=0.3)
     ax6.legend()
+    fig1.tight_layout(rect=[0, 0, 1, 0.96])
 
-    ax7 = axs2[1, 0]
-    if benchmark_episode_points:
-        ax7.plot(benchmark_episode_points, benchmark_reward_history, alpha=0.20, color="tab:purple", label="Stage-3 Benchmark Reward")
-        ax7.plot(benchmark_episode_points, benchmark_reward_ma, linewidth=2.5, color="tab:purple", label="Benchmark Reward MA")
-    add_stage_background(ax7, stage_history)
-    ax7.set_title("Reward auf fixem Stage-3-Standard")
-    ax7.set_xlabel("Episode")
-    ax7.set_ylabel("Benchmark Reward")
-    ax7.grid(True, alpha=0.3)
-    ax7.legend()
-
-    ax8 = axs2[1, 1]
-    ax8.plot(critic_loss_history, alpha=0.25, label="Critic Loss")
-    ax8.plot(critic_loss_ma, linewidth=2.5, label="Critic Loss MA")
-    ax8.plot(actor_loss_history, alpha=0.2, label="Actor Loss")
-    ax8.plot(actor_loss_ma, linewidth=2.0, label="Actor Loss MA")
-    ax8_twin = ax8.twinx()
-    ax8_twin.plot(shaping_reward_ma, linewidth=1.6, color="tab:blue", alpha=0.8, label="Shape Reward MA")
-    ax8_twin.plot(terminal_reward_ma, linewidth=1.6, color="tab:purple", alpha=0.8, label="Terminal Reward MA")
-    add_stage_background(ax8, stage_history)
-    ax8.set_title("Verluste und Reward-Anteile")
-    ax8.set_xlabel("Episode")
-    ax8.set_ylabel("Loss")
-    ax8_twin.set_ylabel("Reward-Anteile")
-    ax8.grid(True, alpha=0.3)
-    lines_left, labels_left = ax8.get_legend_handles_labels()
-    lines_right, labels_right = ax8_twin.get_legend_handles_labels()
-    ax8.legend(lines_left + lines_right, labels_left + labels_right, fontsize=8, loc="upper right")
-    fig2.tight_layout(rect=[0, 0, 1, 0.96])
-
-    fig3, axs3 = plt.subplots(2, 2, figsize=(15, 9), num="Stage-3 Standard And Shape")
-    fig3.suptitle("Stage-3 Standard And Shape", fontsize=16)
-
-    ax9 = axs3[0, 0]
-    ax9.plot(straightness_history, alpha=0.25, label="Straightness")
-    ax9.plot(straightness_ma, linewidth=2.5, label="Straightness MA")
-    ax9_twin = ax9.twinx()
-    ax9_twin.plot(extra_corner_history, alpha=0.2, color="tab:red", label="Extra Corners")
-    ax9_twin.plot(extra_corner_ma, linewidth=2.0, color="tab:red", label="Extra Corners MA")
-    add_stage_background(ax9, stage_history)
-    ax9.set_title("Formqualität")
-    ax9.set_xlabel("Episode")
-    ax9.set_ylabel("Straightness")
-    ax9_twin.set_ylabel("Extra Corners")
-    ax9.grid(True, alpha=0.3)
-    lines_left, labels_left = ax9.get_legend_handles_labels()
-    lines_right, labels_right = ax9_twin.get_legend_handles_labels()
-    ax9.legend(lines_left + lines_right, labels_left + labels_right, fontsize=8, loc="upper right")
-
-    ax10 = axs3[0, 1]
-    for stage, (x_vals, y_vals) in stage_area_curves.items():
-        ax10.plot(x_vals, y_vals, linewidth=2.2, color=stage_colors.get(stage, None), label=f"Stage {stage}")
-    ax10.set_title("Flaeche je Stage lokal (MA 25)")
-    ax10.set_xlabel("Episode innerhalb der Stage")
-    ax10.set_ylabel("Fläche")
-    ax10.grid(True, alpha=0.3)
-    ax10.legend()
-
-    ax11 = axs3[1, 0]
-    for stage, (x_vals, y_vals) in benchmark_success_curves.items():
-        ax11.plot(x_vals, y_vals, linewidth=2.2, color=stage_colors.get(stage, None), label=f"Train in Stage {stage}")
-    ax11.set_title("Stage-3-Benchmark-Success je Trainings-Stage")
-    ax11.set_xlabel("Episode")
-    ax11.set_ylabel("Erfolgsquote in %")
-    ax11.set_ylim(0, 100)
-    ax11.grid(True, alpha=0.3)
-    ax11.legend()
-
-    ax12 = axs3[1, 1]
-    if benchmark_episode_points:
-        ax12.plot(benchmark_episode_points, benchmark_area_history, alpha=0.20, color="tab:orange", label="Stage-3 Benchmark Area")
-        ax12.plot(benchmark_episode_points, benchmark_area_ma, linewidth=2.5, color="tab:orange", label="Benchmark Area MA")
-    add_stage_background(ax12, stage_history)
-    ax12.set_title("Flaeche auf fixem Stage-3-Standard")
-    ax12.set_xlabel("Episode")
-    ax12.set_ylabel("Area")
-    ax12.grid(True, alpha=0.3)
-    ax12.legend()
-    fig3.tight_layout(rect=[0, 0, 1, 0.96])
-
-    fig4, axs4 = plt.subplots(1, 4, figsize=(18, 5), num="Best Per Stage")
-    fig4.suptitle("Best Per Stage", fontsize=16)
+    fig2, axs2 = plt.subplots(1, 4, figsize=(18, 5), num="Triangle Progression")
+    fig2.suptitle("Triangle Progression", fontsize=16)
     progress_handles = []
     progress_labels = []
     if progress_showcases:
         for idx, (label, result) in enumerate(progress_showcases[:4]):
-            ax = axs4[idx]
+            ax = axs2[idx]
             plot_episode(ax, label, result)
             if not progress_handles:
                 progress_handles, progress_labels = ax.get_legend_handles_labels()
     else:
-        for ax in axs4:
+        for ax in axs2:
             ax.axis("off")
     if progress_handles:
-        fig4.legend(progress_handles, progress_labels, loc="lower center", ncol=4)
-    fig4.tight_layout(rect=[0, 0.05, 1, 0.94])
+        fig2.legend(progress_handles, progress_labels, loc="lower center", ncol=4)
+    fig2.tight_layout(rect=[0, 0.05, 1, 0.94])
 
-    fig5, axs5 = plt.subplots(1, 4, figsize=(18, 5), num="Best Final Triangles")
-    fig5.suptitle("Best Final Triangles", fontsize=16)
+    fig3, axs3 = plt.subplots(1, 4, figsize=(18, 5), num="Final Policy Showcase")
+    fig3.suptitle("Final Policy Showcase", fontsize=16)
     showcase_handles = []
     showcase_labels = []
     if showcases:
         for idx, (label, result) in enumerate(showcases[:4]):
-            ax = axs5[idx]
+            ax = axs3[idx]
             plot_episode(ax, label, result)
             if not showcase_handles:
                 showcase_handles, showcase_labels = ax.get_legend_handles_labels()
     else:
-        for ax in axs5:
+        for ax in axs3:
             ax.axis("off")
-        axs5[1].text(0.5, 0.5, "Keine erfolgreichen Final-Stage-Rollouts gefunden.", ha="center", va="center", fontsize=14)
+        axs3[1].text(0.5, 0.5, "Keine erfolgreichen Final-Stage-Rollouts gefunden.", ha="center", va="center", fontsize=14)
     if showcase_handles:
-        fig5.legend(showcase_handles, showcase_labels, loc="lower center", ncol=4)
-    fig5.tight_layout(rect=[0, 0.05, 1, 0.94])
+        fig3.legend(showcase_handles, showcase_labels, loc="lower center", ncol=4)
+    fig3.tight_layout(rect=[0, 0.05, 1, 0.94])
 
-    fig6, axs6 = plt.subplots(1, 4, figsize=(18, 5), num="Recent Triangles And Summary")
-    fig6.suptitle("Recent Triangles And Summary", fontsize=16)
-    if recent_showcases:
-        for idx, (label, result) in enumerate(recent_showcases[:3]):
-            plot_episode(axs6[idx], label, result)
-    for idx in range(len(recent_showcases), 3):
-        axs6[idx].axis("off")
+    fig4, axs4 = plt.subplots(1, 2, figsize=(14, 5), num="Final Summary")
+    fig4.suptitle("Final Summary", fontsize=16)
+    ax_summary_plot, summary_ax = axs4
+    if benchmark_episode_points:
+        ax_summary_plot.plot(benchmark_episode_points, benchmark_area_history, alpha=0.20, color="tab:orange", label="Stage-3 Benchmark Area")
+        ax_summary_plot.plot(benchmark_episode_points, benchmark_area_ma, linewidth=2.5, color="tab:orange", label="Benchmark Area MA")
+    ax_summary_plot.set_title("Stage-3-Benchmark-Area")
+    ax_summary_plot.set_xlabel("Episode")
+    ax_summary_plot.set_ylabel("Area")
+    ax_summary_plot.grid(True, alpha=0.3)
+    if benchmark_episode_points:
+        ax_summary_plot.legend()
 
-    summary_ax = axs6[3]
     summary_ax.axis("off")
     summary_ax.set_title("Kennzahlen")
     summary_ax.text(0.0, 1.0, "\n".join(summary_lines), va="top", ha="left", fontsize=10, family="monospace")
-    fig6.tight_layout(rect=[0, 0, 1, 0.94])
+    fig4.tight_layout(rect=[0, 0, 1, 0.94])
     plt.show()
