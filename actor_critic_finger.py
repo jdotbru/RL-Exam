@@ -2,6 +2,7 @@
 
 import random
 import traceback
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -298,8 +299,10 @@ def main():
     torch.manual_seed(seed)
 
     #Variablen um Laufdauer zu entscheiden
-    quick_test = True
-    long_run = False
+    quick_test = os.environ.get("FT_QUICK_TEST", "1") == "1"
+    long_run = os.environ.get("FT_LONG_RUN", "0") == "1"
+    fast_tune = os.environ.get("FT_FAST_TUNE", "0") == "1"
+    disable_plot = os.environ.get("FT_DISABLE_PLOT", "0") == "1"
 
     # Hyperparameter
     if quick_test:
@@ -308,6 +311,9 @@ def main():
         episodes = 6000
     else:
         episodes = 3000
+
+    if fast_tune:
+        episodes = int(os.environ.get("FT_EPISODES", "450"))
     
     #einstellbare Parameter für Lernveränderung    
     gamma = 0.99
@@ -327,6 +333,12 @@ def main():
     checkpoint_eval_every = 200 if quick_test else 100
     checkpoint_eval_episodes = 16 if quick_test else 48
     periodic_eval_episodes = 5 if quick_test else 15
+
+    if fast_tune:
+        final_eval_episodes_per_temperature = int(os.environ.get("FT_FINAL_EVAL_EPISODES", "40"))
+        checkpoint_eval_every = int(os.environ.get("FT_CHECKPOINT_EVERY", "100"))
+        checkpoint_eval_episodes = int(os.environ.get("FT_CHECKPOINT_EPISODES", "12"))
+        periodic_eval_episodes = int(os.environ.get("FT_PERIODIC_EVAL_EPISODES", "4"))
     best_checkpoint_path = "best_triangle_checkpoint.pt"
     final_summary_path = "final_eval_summary.txt"
 
@@ -371,7 +383,14 @@ def main():
     best_checkpoint_episode = 0
 
     #Stage-definition für verschiedene Run-Optionen
-    if quick_test:
+    if fast_tune:
+        stage_endpoints = (
+            int(0.27 * episodes),
+            int(0.60 * episodes),
+            int(0.90 * episodes),
+            episodes,
+        )
+    elif quick_test:
         stage_endpoints = (320, 720, 1080, episodes)
     elif long_run:
         stage_endpoints = (1600, 3800, 5600, episodes)
@@ -732,31 +751,32 @@ def main():
             summary_file.write("\n".join(summary_lines) + "\n")
 
         #Plotting
-        plot_results(
-            reward_history=reward_history,
-            area_history=area_history,
-            success_history=success_history,
-            successful_area_history=successful_area_history,
-            straightness_history=straightness_history,
-            extra_corner_history=extra_corner_history,
-            good_triangle_history=good_triangle_history,
-            actor_loss_history=actor_loss_history,
-            critic_loss_history=critic_loss_history,
-            shaping_reward_history=shaping_reward_history,
-            terminal_reward_history=terminal_reward_history,
-            stage_history=stage_history,
-            distance_history=[result.distance_to_start for result in training_results],
-            training_results=training_results,
-            benchmark_episode_points=benchmark_episode_points,
-            benchmark_reward_history=benchmark_reward_history,
-            benchmark_success_history=benchmark_success_history,
-            benchmark_area_history=benchmark_area_history,
-            benchmark_distance_history=benchmark_distance_history,
-            benchmark_straightness_history=benchmark_straightness_history,
-            benchmark_stage_history=benchmark_stage_history,
-            showcases=build_sampler_showcases(final_eval_results),
-            progress_showcases=build_progress_showcases(training_results),
-        )
+        if not disable_plot:
+            plot_results(
+                reward_history=reward_history,
+                area_history=area_history,
+                success_history=success_history,
+                successful_area_history=successful_area_history,
+                straightness_history=straightness_history,
+                extra_corner_history=extra_corner_history,
+                good_triangle_history=good_triangle_history,
+                actor_loss_history=actor_loss_history,
+                critic_loss_history=critic_loss_history,
+                shaping_reward_history=shaping_reward_history,
+                terminal_reward_history=terminal_reward_history,
+                stage_history=stage_history,
+                distance_history=[result.distance_to_start for result in training_results],
+                training_results=training_results,
+                benchmark_episode_points=benchmark_episode_points,
+                benchmark_reward_history=benchmark_reward_history,
+                benchmark_success_history=benchmark_success_history,
+                benchmark_area_history=benchmark_area_history,
+                benchmark_distance_history=benchmark_distance_history,
+                benchmark_straightness_history=benchmark_straightness_history,
+                benchmark_stage_history=benchmark_stage_history,
+                showcases=build_sampler_showcases(final_eval_results),
+                progress_showcases=build_progress_showcases(training_results),
+            )
     except Exception:
         print("\nFinal evaluation failed:\n" + traceback.format_exc(), flush=True)
 

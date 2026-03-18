@@ -305,7 +305,7 @@ class FingerTriangleEnv(gym.Env):
             #Stage 2: weitere Verschärfung
             self.maxSteps = self.maxStepsStage2
             self.minSteps = 22
-            self.closureRadius = 1.72
+            self.closureRadius = 1.65
             self.minArea = 0.08
             self.maxMeanLineDeviation = 0.40
             self.minStraightnessForSuccess = 0.38
@@ -318,9 +318,9 @@ class FingerTriangleEnv(gym.Env):
             self.reward_Phase2AreaPreservation = 0.0
             self.reward_Phase2DirectionAlignment = 2.0
             self.reward_Phase2CleanReturn = 0.0
-            self.reward_Phase1Corner2Spread = 7.5
-            self.reward_Phase1Corner1Separation = 2.0
-            self.penalty_Phase1PrematureReturn = 1.5
+            self.reward_Phase1Corner2Spread = 5.5
+            self.reward_Phase1Corner1Separation = 1.5
+            self.penalty_Phase1PrematureReturn = 1.0
             self.penalty_Phase2AwayFromStart = 8.0
             self.penalty_Phase2ReturnLineDeviation = 6.0
             self.penalty_Phase2LateDistance = 1.5
@@ -330,7 +330,7 @@ class FingerTriangleEnv(gym.Env):
             #Stage 3: nahezu identisch zu Stage 2, nur als kurze Abschlussphase
             self.maxSteps = self.maxStepsStage3
             self.minSteps = 22
-            self.closureRadius = 1.65
+            self.closureRadius = 1.72
             self.minArea = 0.08
             self.maxMeanLineDeviation = 0.40
             self.minStraightnessForSuccess = 0.38
@@ -340,15 +340,15 @@ class FingerTriangleEnv(gym.Env):
             self.penalty_ExtraCorner = 15.0
             self.penalty_SegmentCurvature = 5.0
             self.reward_TriangleStraightness = 108.0
-            self.reward_Phase2Closure = 11.3
+            self.reward_Phase2Closure = 11.0
             self.reward_Phase2AreaPreservation = 0.0
-            self.reward_Phase2DirectionAlignment = 2.4
-            self.reward_Phase2CleanReturn = 1.4
-            self.reward_Phase1Corner2Spread = 4.5
-            self.reward_Phase1Corner1Separation = 1.0
-            self.penalty_Phase1PrematureReturn = 0.6
+            self.reward_Phase2DirectionAlignment = 2.0
+            self.reward_Phase2CleanReturn = 0.8
+            self.reward_Phase1Corner2Spread = 2.5
+            self.reward_Phase1Corner1Separation = 0.5
+            self.penalty_Phase1PrematureReturn = 0.2
             self.penalty_Phase2AwayFromStart = 8.0
-            self.penalty_Phase2ReturnLineDeviation = 5.8
+            self.penalty_Phase2ReturnLineDeviation = 5.2
             self.penalty_Phase2LateDistance = 1.2
             self.partialAreaScale = 1.0
             self.terminalGapScale = 1.0
