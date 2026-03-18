@@ -161,17 +161,6 @@ def build_progress_showcases(results: list[EpisodeResult]) -> list[tuple[str, Ep
         selected.append((stage_labels[stage], candidate))
     return build_showcase_episodes(selected, limit=4)
 
-
-def build_recent_triangle_showcases(results: list[EpisodeResult], limit: int = 3) -> list[tuple[str, EpisodeResult]]:
-    if not results:
-        return []
-    triangle_like = [result for result in results if result.found_corner2 or result.final_phase >= 2]
-    source = triangle_like if len(triangle_like) >= limit else results
-    selected = source[-limit:]
-    labels = [f"Letzte {idx + 1}" for idx in range(len(selected))]
-    return list(zip(labels, selected))
-
-
 def summarize_training_metrics(
     reward_history: list[float],
     area_history: list[float],
