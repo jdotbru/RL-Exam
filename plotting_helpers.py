@@ -47,6 +47,22 @@ def presentation_quality_score(result: EpisodeResult) -> float:
     return float(score)
 
 
+def progress_showcase_score(result: EpisodeResult) -> float:
+    score = (
+        170.0 * result.triangle_straightness
+        - 70.0 * result.distance_to_start
+        - 24.0 * result.extra_corners
+        + 45.0 * result.area
+    )
+    if result.final_phase >= 2:
+        score += 60.0
+    if result.success:
+        score += 170.0
+    if result.good_triangle:
+        score += 110.0
+    return float(score)
+
+
 def visually_closed(result: EpisodeResult) -> bool:
     return bool(result.success and result.distance_to_start <= 0.60)
 
@@ -155,9 +171,17 @@ def build_progress_showcases(results: list[EpisodeResult]) -> list[tuple[str, Ep
         stage_results = [result for result in results if result.curriculum_stage == stage]
         if not stage_results:
             continue
-        stage_successes = [result for result in stage_results if result.success]
-        source = stage_successes if stage_successes else stage_results
-        candidate = best_form_variant(max(source, key=presentation_quality_score))
+
+        # Show what the stage learned near its end instead of a lucky early outlier.
+        late_count = max(1, int(0.35 * len(stage_results)))
+        late_stage_results = stage_results[-late_count:]
+
+        phase2_results = [result for result in late_stage_results if result.final_phase >= 2]
+        successful_results = [result for result in phase2_results if result.success]
+        good_results = [result for result in successful_results if result.good_triangle]
+
+        source = good_results or successful_results or phase2_results or late_stage_results
+        candidate = best_form_variant(max(source, key=progress_showcase_score))
         selected.append((stage_labels[stage], candidate))
     return build_showcase_episodes(selected, limit=4)
 
